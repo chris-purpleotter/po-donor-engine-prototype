@@ -7,9 +7,15 @@
       primary_window_days, primary_kpi): 'gave' for most, 'retained' for sustainers
     - first baseline lookback, the summary_holdout_pct holdout
 
-  Opportunity = extra successes from a lift of the detectable size x what one extra success
-  has been worth (revenue_gap_recent: revenue among donors who succeeded minus among those
-  who didn't, same window). Observational and approximate: a sizing figure, not a forecast.
+  Value (observational, approximate: sizing figures, not forecasts):
+    revenue_per_extra_donor   what one extra success has been worth over the window
+                              (revenue among donors who succeeded minus among those who didn't)
+    value_per_point           donors x 1 percentage point x revenue_per_extra_donor: what each
+                              +1 point on the KPI is worth. The headline: grows with segment
+                              size and doesn't depend on test design.
+    value_of_detectable_lift  the same for the smallest provable lift (detectable_lift). Shrinks
+                              as tests get more sensitive, so it's a floor for test planning,
+                              NOT a ranking of where the money is.
 #}
 
 {% macro pode_segment_summary(by_slice) %}
@@ -85,9 +91,10 @@ select
     h.mde_relative_planning                             as detectable_lift_relative,
     h.is_testable,
     h.readout_date_if_launched_now                      as readable_by,
-    h.n_eligible * h.mde_abs_planning                   as opportunity_extra_donors,
     h.revenue_gap_recent                                as revenue_per_extra_donor,
-    h.n_eligible * h.mde_abs_planning * h.revenue_gap_recent as opportunity_revenue
+    h.n_eligible * 0.01 * h.revenue_gap_recent          as value_per_point,
+    h.n_eligible * h.mde_abs_planning                   as extra_donors_at_detectable_lift,
+    h.n_eligible * h.mde_abs_planning * h.revenue_gap_recent as value_of_detectable_lift
 from headline as h
 left join revenue as r
     on  r.segment_id          = h.segment_id

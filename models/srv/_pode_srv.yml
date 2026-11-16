@@ -12,8 +12,8 @@ models:
       One row per segment, as of today. Donors in the segment now; how they normally do on the
       segment's primary KPI over its primary window (rate_recent = today's normal, rate_typical =
       pooled over the last 12 months); whether a test is worth running (detectable_lift,
-      is_testable, readable_by at the default holdout); and roughly what that lift would be worth
-      (opportunity_*).
+      is_testable, readable_by at the default holdout); and what improvement is worth
+      (value_per_point: each +1 point on the KPI; value_of_detectable_lift: the smallest provable lift).
       Segments can overlap (custom ones especially): don't add donors_at_snapshot across segments.
     data_tests:
       - pode_unique_combination:
@@ -32,19 +32,21 @@ models:
       - name: rate_same_season
         description: "The same, for the same months last year (snapshots 11-13 months ago). A test launched now runs through the same season, so this is the planning baseline. Null with too little history."
       - name: planning_basis
-        description: "Which rate the detectable lift and opportunity use: 'same_season', or 'recent' when there isn't a year of history."
+        description: "Which rate the detectable lift uses: 'same_season', or 'recent' when there isn't a year of history."
       - name: is_unstable
         description: "Recent and 12-month rates differ a lot, or the months swing widely."
       - name: detectable_lift
         description: "Smallest lift (as a fraction) a test with holdout_pct held out could reliably detect, vs the planning baseline (planning_basis)."
       - name: is_testable
         description: "Whether a test here could realistically give a clear answer (detectable lift <= +50% relative)."
-      - name: opportunity_extra_donors
-        description: "Extra donors achieving the primary KPI if the rate rose by the detectable lift (the smallest lift a test could prove)."
       - name: revenue_per_extra_donor
         description: "What one extra success has been worth: capped window revenue among donors who achieved the KPI minus among those who didn't. Observational."
-      - name: opportunity_revenue
-        description: "Rough sizing: opportunity_extra_donors x revenue_per_extra_donor. Approximately what a provable lift would be worth over the window; not a forecast."
+      - name: value_per_point
+        description: "What each +1 percentage point on the KPI is worth over the window: donors x 0.01 x revenue_per_extra_donor. The headline for 'where is the money'. Rough sizing, not a forecast."
+      - name: extra_donors_at_detectable_lift
+        description: "Extra donors achieving the KPI if the rate rose by exactly the detectable lift."
+      - name: value_of_detectable_lift
+        description: "Value of the smallest provable lift (extra_donors_at_detectable_lift x revenue_per_extra_donor). A floor for test planning; shrinks with bigger holdouts, so don't rank segments by it."
 
   - name: pode_srv__segment_summary_by_slice
     description: >

@@ -84,7 +84,7 @@ Everything a client exposes lives in one schema, `pode_srv` (D13). Each table is
 
 | table | grain | answers |
 |---|---|---|
-| `pode_srv__segment_summary` | segment | Who to focus on: size now, headline rate, detectable lift, testable?, rough opportunity |
+| `pode_srv__segment_summary` | segment | Who to focus on: size now, headline rate, detectable lift, testable?, value per +1 point |
 | `pode_srv__segment_summary_by_slice` | segment × slice (`slice_by` = a breakdown column) | The same, split by channel / region / first-gift band / `attr_*` |
 | `pode_srv__test_planning` | segment × window × holdout % | Compare test options: detectable lift vs donors held out |
 | `pode_srv__segment_trend` | segment × month-end | Size, entering / leaving, and gave / retained / revenue rates over time |
@@ -111,7 +111,7 @@ Everything a client exposes lives in one schema, `pode_srv` (D13). Each table is
 
 MDE = (z₁₋α/₂ + z_power) · √(variance · (1/n_treatment + 1/n_holdout)). `is_testable` = relative MDE ≤ `max_plausible_relative_lift` (0.5). `readout_date_if_launched_now` = `as_of + outcome_window_days`.
 
-**Headline choices per segment:** `primary_window_days` (new 90, lapsed 180, others 365) and `primary_kpi` (`retained` for sustainers, `gave` otherwise); custom segments may set both. **Opportunity** (summary only) = extra successes from a lift of the detectable size × `revenue_gap_recent`. Observational, rough sizing, not a forecast.
+**Headline choices per segment:** `primary_window_days` (new 90, lapsed 180, others 365) and `primary_kpi` (`retained` for sustainers, `gave` otherwise); custom segments may set both. **Value** (summary only; observational, rough sizing, not a forecast): `value_per_point` = donors × 1 point × `revenue_gap_recent`, what each +1 point on the KPI is worth; the headline for ranking segments. `value_of_detectable_lift` = the same at the smallest provable lift; a floor for test planning only, because it shrinks as tests get more sensitive (bigger holdouts) and grows only with √n. (Replaced `opportunity_*` in v0.1.1-prototype.)
 
 **Statistical settings are levers, but they get locked.**
 

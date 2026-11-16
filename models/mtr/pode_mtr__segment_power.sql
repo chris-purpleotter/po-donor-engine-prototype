@@ -45,17 +45,33 @@ with baselines as (
 
 ),
 
--- Size today = n at the latest anchor (window completeness doesn't matter for size).
+-- Size today = n at the LATEST month-end (as_of's), for every series; 0 when the segment
+-- (or slice) has nobody now. Using each series' own latest anchor instead would show a
+-- stale size for a segment that has since emptied. Window completeness doesn't matter for size.
+latest as (
+    select max(anchor_date) as latest_anchor_date from baselines
+),
+
+series as (
+    select
+        {{ keys | join(', ') }},
+        max(segment_label)  as segment_label,
+        max(segment_source) as segment_source,
+        max(metric_type)    as metric_type
+    from baselines
+    group by {{ keys | join(', ') }}
+),
+
 eligible as (
 
-    select b.*, b.anchor_date as latest_anchor_date, b.n as n_eligible
-    from baselines as b
-    inner join (
-        select {{ keys | join(', ') }}, max(anchor_date) as latest_anchor_date
-        from baselines
-        group by {{ keys | join(', ') }}
-    ) as l
-        on {% for k in keys %}l.{{ k }} = b.{{ k }} and {% endfor %}l.latest_anchor_date = b.anchor_date
+    select
+        s.*,
+        l.latest_anchor_date,
+        coalesce(b.n, 0)    as n_eligible
+    from series as s
+    cross join latest as l
+    left join baselines as b
+        on {% for k in keys %}b.{{ k }} = s.{{ k }} and {% endfor %}b.anchor_date = l.latest_anchor_date
 
 ),
 
