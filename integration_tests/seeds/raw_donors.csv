@@ -1,0 +1,11 @@
+Id,CreatedDate,MailingState,LeadSource,Theme,RecordType,Deceased,BoardMember,AcquisitionCost
+D01,2023-01-15,ON,Web,climate,Household,false,false,10
+D02,2023-03-02,BC,Direct Mail,wildlife,Household,false,false,
+D03,2024-06-10,QC,Event,,Household,false,false,
+D04,2025-09-01,ON,Web,climate,Household,false,false,
+D05,2024-02-20,AB,Face to Face,,Household,false,false,30
+D06,2025-01-05,ON,Web,oceans,Household,false,false,
+D07,2026-05-12,BC,Petition,climate,Household,false,false,
+D08,2022-11-30,ON,Corporate,,Organization,false,false,
+D09,2021-04-18,NS,Direct Mail,,Household,true,false,
+D10,2023-08-08,ON,Major Gifts,,Household,false,true,

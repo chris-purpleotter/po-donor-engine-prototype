@@ -1,0 +1,138 @@
+version: 2
+
+# The canonical contract (SPEC §6).
+# - SHAPE (column names + types) is enforced by `contract: {enforced: true}`.
+# - RULES (not null, unique, accepted values, business rules) are enforced by data_tests.
+#   We deliberately use tests, not `constraints:`, because constraints are ignored on
+#   views (these models are views) and are informational-only on some warehouses
+#   (e.g. BigQuery). Tests behave the same everywhere.
+#
+# data_type values must be PORTABLE: dbt runs a check query that casts to these
+# exact names in the target warehouse. Use generic names (string, date, boolean)
+# that dbt translates per adapter, and an explicit numeric(18,2) for money,
+# because an unqualified `numeric` has a different default precision in every
+# warehouse (DuckDB 18,3; Snowflake 38,0 = no cents). Never use warehouse-only
+# names like varchar (BigQuery rejects it) or string-with-length.
+
+models:
+  - name: pode_can__donors
+    description: "Canonical donors: one row per donor at the client's chosen grain (D2). Includes prospects (zero gifts)."
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: donor_id
+        data_type: string
+        description: "Stable donor key. Grain (contact or household) is chosen in conform and fixed per client."
+        data_tests: [unique, not_null]
+      - name: created_at
+        data_type: date
+        description: "When the donor record came into existence. Prospects never appear in snapshots before this date."
+        data_tests: [not_null]
+      - name: region
+        data_type: string
+        description: "Current region. Current-value attribute, allowed under D7."
+      - name: acquisition_channel
+        data_type: string
+        description: "How the donor was acquired. Current-value attribute, allowed under D7."
+      - name: acquisition_theme
+        data_type: string
+        description: "Content theme at acquisition, if known."
+      - name: donor_type
+        data_type: string
+        description: "individual | organization. Standard segments default to individuals."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['individual', 'organization']
+      - name: is_deceased
+        data_type: boolean
+        description: "Deceased donors are excluded from segments by default (never in a treatment list)."
+        data_tests: [not_null]
+
+  - name: pode_can__donor_attributes
+    description: >
+      Client-chosen extra donor columns (var donors_extra_columns), from the same conform model
+      as pode_can__donors, renamed attr_<name>. Not contracted. Flows into the donor snapshot for
+      segment rules and breakdowns. Current values only: never attributes that change because
+      of giving (D7).
+    columns:
+      - name: donor_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('pode_can__donors')
+                field: donor_id
+
+  - name: pode_can__gift_attributes
+    description: >
+      Client-chosen extra gift columns (var gifts_extra_columns), from the same conform model as
+      pode_can__gifts, renamed attr_<name>. Not contracted. Gift-level only on day one.
+    columns:
+      - name: gift_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('pode_can__gifts')
+                field: gift_id
+
+  - name: pode_can__gifts
+    description: "Canonical gifts: every hard-credit revenue row, labelled, never dropped (D1). Soft credits excluded."
+    config:
+      contract: {enforced: true}
+    data_tests:
+      - pode_refund_sign
+      - pode_recurring_has_schedule
+      - pode_exclusion_reason_consistent
+      - pode_suspected_unlinked_recurring   # severity: warn (heuristic)
+    columns:
+      - name: gift_id
+        data_type: string
+        data_tests: [unique, not_null]
+      - name: donor_id
+        data_type: string
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('pode_can__donors')
+                field: donor_id
+      - name: gift_date
+        data_type: date
+        description: "Client-local date (D5)."
+        data_tests: [not_null]
+      - name: amount
+        data_type: "{{ 'numeric' if target.type == 'bigquery' else 'numeric(18,2)' }}"   # must mirror macros/pode_type_money.sql
+        description: "Reporting currency. Refunds negative, everything else positive (D4)."
+        data_tests: [not_null]
+      - name: gift_type
+        data_type: string
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['one_time', 'recurring']
+      - name: recurring_schedule_id
+        data_type: string
+        description: "Required when gift_type = 'recurring' (see pode_recurring_has_schedule)."
+      - name: is_refund
+        data_type: boolean
+        data_tests: [not_null]
+      - name: gift_category
+        data_type: string
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['cash', 'pledge_payment', 'matching', 'daf', 'grant', 'bequest', 'in_kind', 'other']
+      - name: is_kpi_eligible
+        data_type: boolean
+        description: "Conform's decision (default via pode_default_kpi_eligible + client rules)."
+        data_tests: [not_null]
+      - name: exclusion_reason
+        data_type: string
+        description: "Null exactly when is_kpi_eligible is true (see pode_exclusion_reason_consistent)."

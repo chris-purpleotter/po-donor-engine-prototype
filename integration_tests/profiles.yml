@@ -1,0 +1,9 @@
+# Connection for the test project only (never touches ~/.dbt/profiles.yml).
+# Run dbt from this folder with:  uv run dbt <cmd> --profiles-dir .
+pode_integration_tests:
+  target: duckdb
+  outputs:
+    duckdb:
+      type: duckdb
+      path: pode_test.duckdb     # local file in integration_tests/ (gitignored)
+      threads: 4

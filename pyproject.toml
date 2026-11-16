@@ -1,0 +1,11 @@
+[project]
+name = "po-donor-engine"
+version = "0.1.0"
+description = "Dev tooling for the po_donor_engine dbt package (not needed by clients installing the package)"
+requires-python = ">=3.12"
+dependencies = [
+    # Same dbt minor version as po-nonprofit-analytics (the first project the engine plugs into).
+    "dbt-core>=1.11,<1.12",
+    # DuckDB adapter: integration_tests/ run against a local file, no cloud credentials needed.
+    "dbt-duckdb",
+]

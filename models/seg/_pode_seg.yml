@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: pode_seg__membership
+    description: >
+      Who is in which segment at each snapshot date. One row per segment_id x donor_id x
+      snapshot_date. A segment is a named, versioned filter on pode_ftr__donor_snapshot,
+      plus the default filter (individuals, not deceased). Segments may overlap.
+    columns:
+      - name: segment_id
+        description: "std_* (engine-defined, identical for every client) or cust_* (client-defined), ending in _vN."
+        data_tests: [not_null]
+      - name: segment_label
+        description: "Human-readable name, shown in Lightdash."
+      - name: segment_source
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['standard', 'custom']
+      - name: donor_id
+        data_tests: [not_null]
+      - name: snapshot_date
+        data_tests: [not_null]

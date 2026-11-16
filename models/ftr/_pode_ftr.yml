@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: pode_ftr__donor_snapshot
+    description: >
+      One row per donor per snapshot date (month-ends; later also experiment launch dates). Every value is computed as of that
+      month-end from KPI-eligible gifts only (SPEC §5). This column list is the menu
+      for segment rules.
+    columns:
+      - name: donor_id
+        data_tests: [not_null]
+      - name: snapshot_date
+        description: "The month-end this row describes."
+        data_tests: [not_null]
+      - name: lifecycle_stage
+        description: "Exactly one stage, D6 rules, first match wins: sustainer, new, active, lapsed, deep_lapsed, prospect."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['sustainer', 'new', 'active', 'lapsed', 'deep_lapsed', 'prospect']
+      - name: days_since_last_gift
+        description: "Days from the last positive eligible gift to snapshot_date. Null for prospects."
+      - name: days_since_first_gift
+        description: "Days from the first positive eligible gift to snapshot_date. Building block for custom 'new' definitions, e.g. `days_since_first_gift <= 180`. Null for prospects."
+      - name: days_since_last_recurring
+        description: "Days from the last recurring payment to snapshot_date. Building block for custom sustainer windows, e.g. `days_since_last_recurring <= 60`. Null if never recurring."
+      - name: gift_count_12m
+        description: "Positive gifts in the 12 calendar months ending at snapshot_date."
+      - name: net_giving_12m
+        description: "Net eligible giving (refunds subtracted) in the 12 calendar months ending at snapshot_date."
+      - name: gave_prior_year_not_ytd
+        description: "Calendar-year LYBUNT. Depends on the time of year: early in the year almost everyone qualifies, so it is most meaningful from about Q3."
+      - name: is_recurring_active
+        description: "Heuristic: a recurring payment within recurring_active_days (default 45) of snapshot_date."
+      - name: is_new_donor
+        description: "First gift within 90 days of snapshot_date."
+      - name: is_reactivated
+        description: "Gave in the last 365 days after a gap of more than 365 days."
+
+  - name: pode_ftr__kpi_outcomes
+    description: >
+      What each donor did AFTER each anchor date (SPEC §4). One row per donor x anchor_date.
+      One column per KPI x window (windows from the kpi_windows_days var). gave_Nd counts
+      only qualifying gifts (one-time, or the first payment of a new recurring schedule);
+      revenue_Nd is net eligible giving floored at 0 and capped at revenue_cap.
+      Use only rows where is_complete_Nd is true for final results.
+    columns:
+      - name: donor_id
+        data_tests: [not_null]
+      - name: anchor_date
+        data_tests: [not_null]

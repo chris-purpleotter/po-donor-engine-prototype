@@ -1,0 +1,14 @@
+# Python environment (recreate with `uv sync`)
+.venv/
+
+# dbt build output, installed packages, logs
+target/
+dbt_packages/
+logs/
+
+# Local DuckDB test databases
+*.duckdb
+*.duckdb.wal
+
+# dbt anonymous usage id (per machine)
+.user.yml

@@ -1,0 +1,37 @@
+# A tiny fake "client" project used to test po_donor_engine end to end,
+# exactly the way a real client would install and run it.
+
+name: 'pode_integration_tests'
+version: '0.1.0'
+config-version: 2
+
+profile: 'pode_integration_tests'   # defined in ./profiles.yml (local DuckDB file)
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+
+# Like a real client: map the engine's input slots to OUR conform model names.
+# (Testing the override, not the defaults.)
+vars:
+  po_donor_engine:
+    donors_model: conform_donors
+    gifts_model: conform_gifts
+    # Fixed date so the expected lifecycle stages in tests/ never drift.
+    as_of: '2026-09-30'
+    # Extra (non-contract) columns brought through from the conform models (SPEC §6.5).
+    donors_extra_columns: [is_board_member, acquisition_cost]
+    # Finance-reported revenue for the sign-off check: 2024 matches, 2025 is deliberately off.
+    finance_totals_model: finance_totals
+    # Short horizons so the 3-month fixture sustainer (D05) produces checkable numbers;
+    # 12 and 6 prove months nobody has reached yet come back null, not 0.
+    sustainer_survival_months: [2, 6]
+    sustainer_ltv_horizons_months: [3, 12]
+    gifts_extra_columns: [campaign_code]
+    # Custom segments, as a client would add them (prove custom rules + attributes work).
+    segments:
+      - id: cust_lapsed_100_v1
+        label: "Lapsed, $100+ lifetime"
+        rule: "lifecycle_stage = 'lapsed' and net_giving_lifetime >= 100"
+      - id: cust_board_v1
+        label: "Board members (who've served)"   # apostrophe on purpose: tests quoting (D10 trap 7)
+        rule: "attr_is_board_member"

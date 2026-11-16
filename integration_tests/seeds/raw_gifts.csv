@@ -1,0 +1,18 @@
+Id,ContactId,CloseDate,Amount,StageName,RecordType,RecurringDonationId,CampaignCode
+G001,D01,2023-01-15,50,Closed Won,Donation,,SPRING-2023
+G002,D01,2024-12-10,75,Closed Won,Donation,,YE-2024
+G003,D02,2023-03-02,25,Closed Won,Donation,,
+G004,D03,2024-06-10,100,Closed Won,Donation,,GALA-2024
+G005,D03,2025-11-20,150,Closed Won,Donation,,YE-2025
+G006,D04,2025-09-01,40,Closed Won,Donation,,
+G007,D05,2026-07-01,20,Closed Won,Donation,RD-0001,
+G008,D05,2026-08-01,20,Closed Won,Donation,RD-0001,
+G009,D05,2026-09-01,20,Closed Won,Donation,RD-0001,
+G010,D06,2025-01-05,60,Closed Won,Donation,,
+G011,D06,2025-01-20,60,Refunded,Refund,,
+G012,D08,2025-03-15,10000,Closed Won,Grant,,
+G013,D09,2021-04-18,30,Closed Won,Donation,,
+G014,D10,2026-03-01,5000,Closed Won,Donation,,CAPITAL-2026
+G015,D10,2025-06-01,250,Closed Won,Donation,,
+G016,D02,2026-10-05,500,Pledged,Donation,,YE-2026
+G017,D04,2026-02-01,35,Closed Lost,Donation,,
