@@ -66,6 +66,8 @@ vars:
     # Serving (SPEC §3): headline choices for the srv tables
     summary_holdout_pct: 15                 # must be in holdout_grid
     summary_default_window_days: 180        # primary window for custom segments without primary_window_days
+    # Donor journey (pode_srv__stage_transitions): stage at a month-end vs N months later.
+    transition_horizons_months: [3, 12, 24, 36]
     # Reconciliation sign-off (SPEC §6.4): optional client model/seed with one row per fiscal
     # year (giving_year, finance_revenue). Null = not supplied; the finance_match checks say so.
     finance_totals_model: null

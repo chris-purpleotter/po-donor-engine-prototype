@@ -92,6 +92,7 @@ Everything a client exposes lives in one schema, `pode_srv` (D13). Each table is
 | `pode_srv__donor_movement` | fiscal year | New / second year / continuing / reactivated / reactivated second year / lost; retention |
 | `pode_srv__donor_cohorts` | acquisition cohort × year | Each first-gift cohort through later years |
 | `pode_srv__sustainer_ltv` | start cohort × slice | Sustainers started, survival at month N, LTV at N months; CPA and LTV:CPA when cost is supplied |
+| `pode_srv__stage_transitions` | from month-end × horizon (3/12/24/36 months) × from stage × to stage | The donor journey: of donors in a stage then, where are they N months later; `is_latest` for an always-current view |
 | `pode_srv__reconciliation` | month × category × donor type × eligibility × gift type × refund | Sign-off totals; every gift once, additive (§6.4) |
 | `pode_srv__project_health` | check (finance: per year) | Is this project healthy? Freshness, gaps, recurring linking, empty segments, finance match (§6.4) |
 

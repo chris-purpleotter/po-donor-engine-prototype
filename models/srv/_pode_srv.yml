@@ -122,6 +122,28 @@ models:
       - name: pct_of_cohort
         description: "Share of the cohort that gave this year."
 
+  - name: pode_srv__stage_transitions
+    description: >
+      The donor journey. One row per from_date x horizon_months x from_stage x to_stage: how many
+      donors in a lifecycle stage at a month-end were in each stage N months later (3 / 12 / 24 / 36).
+      share = donors / from_stage_donors; the shares for one from_stage add up to 1. Filter
+      is_latest = true for an always-current view. To pool several from_dates use
+      sum(donors) / sum(from_stage_donors), never an average of share. 'new' lasts 90 days, so
+      over 12+ months nobody stays new (new -> active is the healthy path).
+    data_tests:
+      - pode_unique_combination:
+          arguments: {columns: ['from_date', 'horizon_months', 'from_stage', 'to_stage']}
+    columns:
+      - name: from_stage_donors
+        description: "All donors in from_stage at from_date: the denominator for share."
+      - name: is_latest
+        description: "True for the most recent from_date whose horizon has fully happened."
+      - name: from_stage_order
+        description: "Journey order for sorting: prospect 1, new 2, active 3, sustainer 4, lapsed 5, deep_lapsed 6."
+        data_tests: [not_null]
+      - name: to_stage_order
+        data_tests: [not_null]
+
   - name: pode_srv__sustainer_ltv
     description: >
       One row per sustainer start cohort x slice (start_cohort = fiscal year of the first recurring
