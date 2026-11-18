@@ -9,6 +9,7 @@
   pocore_foundation__person__month), so every number traces back to rows an analyst can query.
     kpi 'gave'              metric_type 'rate'  value = share who gave,  variance = p(1-p)
     kpi 'retained'          metric_type 'rate'  value = share still an active sustainer at window end
+    kpi 'started_monthly'   metric_type 'rate'  value = share who signed up to a new monthly plan
     kpi 'revenue_per_donor' metric_type 'mean'  value = capped mean,     variance = sample variance
 
   revenue_gap_per_success (rate KPIs only): capped revenue per donor among those who
@@ -40,6 +41,7 @@ with joined as (
         p.month_end_date as anchor_date,
         {%- for w in windows %}
         p.gave_{{ w }}d,
+        p.started_monthly_{{ w }}d,
         p.revenue_{{ w }}d,
         p.revenue_uncapped_{{ w }}d,
         {%- if w in retained_windows %}
@@ -64,7 +66,7 @@ aggregated as (
         anchor_date,
         count(*) as n,
         {%- for w in windows %}
-        {%- for k in ['gave', 'retained'] if k == 'gave' or w in retained_windows %}
+        {%- for k in ['gave', 'started_monthly', 'retained'] if k != 'retained' or w in retained_windows %}
         avg(cast({{ k }}_{{ w }}d as {{ float_type }}))                                       as {{ k }}_{{ w }}d_rate,
         avg(case when {{ k }}_{{ w }}d = 1 then cast(revenue_{{ w }}d as {{ float_type }}) end)
             - coalesce(avg(case when {{ k }}_{{ w }}d = 0 then cast(revenue_{{ w }}d as {{ float_type }}) end), 0)
@@ -81,9 +83,9 @@ aggregated as (
 
 )
 
-{%- set rate_kpis = ['gave', 'retained'] %}
+{%- set rate_kpis = ['gave', 'started_monthly', 'retained'] %}
 {% for w in windows %}
-{%- for k in rate_kpis if k == 'gave' or w in retained_windows %}
+{%- for k in rate_kpis if k != 'retained' or w in retained_windows %}
 select
     segment_id, {{ desc_cols | join(', ') }},
     '{{ k }}'                                                       as kpi_id,

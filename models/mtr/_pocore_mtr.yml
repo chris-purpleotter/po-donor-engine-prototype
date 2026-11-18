@@ -21,7 +21,7 @@ models:
         data_tests:
           - accepted_values:
               arguments:
-                values: ['gave', 'retained', 'revenue_per_donor']
+                values: ['gave', 'started_monthly', 'retained', 'revenue_per_donor']
       - name: anchor_date
         data_tests: [not_null]
 

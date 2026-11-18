@@ -35,6 +35,12 @@ vars:
       - id: cust_board_v1
         label: "Board members (who've served)"   # apostrophe on purpose: tests quoting (D10 trap 7)
         rule: "attr_is_board_member"
+      # judged on started_monthly: did they sign up to a new monthly plan?
+      - id: cust_could_go_monthly_v1
+        label: "Not giving monthly yet"
+        rule: "not is_recurring_active"
+        primary_kpi: started_monthly
+        primary_window_days: 90
       # split_by: also one segment per value (cust_givers_v1__web, cust_givers_v1__direct_mail ...)
       - id: cust_givers_v1
         label: "Has given"

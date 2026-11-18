@@ -377,6 +377,15 @@ segment_sets:
 
 ---
 
+## v0.3.2 – v0.3.5 (2026-11-18)
+
+- **v0.3.2** `standard_splits`: break down the standard groups from config (no duplicate custom copies).
+- **v0.3.3** person features `reactivations_lifetime`, `days_since_reactivation` (as of each month-end); one shared column list (`pocore_snapshot_columns`) for `foundation__person` and `foundation__person__month`, with a test that the two agree on every shared column.
+- **v0.3.4** actual (uncapped) revenue per person on `pocore__segment__month`; `revenue_cap` in the pack settings.
+- **v0.3.5** a third measure, `started_monthly`: signed up to a new monthly plan within 30/90/180/365 days (gift flag `is_recurring_signup`). Groups can use it as their `primary_kpi`.
+
+---
+
 ## 10. Work list (v0.2.0)
 
 1. **Renames:** package, prefix, `donor` → `person`, folders, schemas. No logic changes, so every number must equal v0.1.2.

@@ -24,7 +24,7 @@
             {{ exceptions.raise_compiler_error("po_core: recurring_active_days (" ~ var('recurring_active_days') ~ ") must be less than the shortest retained window (" ~ retained_windows | min ~ " days)") }}
         {%- endif -%}
         {{ return(retained_windows) }}
-    {%- elif kpi in (none, 'gave', 'revenue', 'revenue_per_donor') -%}
+    {%- elif kpi in (none, 'gave', 'started_monthly', 'revenue', 'revenue_per_donor') -%}
         {{ return(all_windows) }}
     {%- else -%}
         {{ exceptions.raise_compiler_error("po_core: pocore_kpi_windows called with unknown kpi '" ~ kpi ~ "'") }}
