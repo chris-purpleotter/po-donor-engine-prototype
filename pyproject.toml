@@ -1,6 +1,6 @@
 [project]
 name = "po-core"
-version = "0.3.0"
+version = "0.3.1"
 description = "Dev tooling for the po_core dbt package (not needed by clients installing the package)"
 requires-python = ">=3.12"
 dependencies = [

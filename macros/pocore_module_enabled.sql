@@ -14,7 +14,7 @@
 #}
 
 {% macro pocore_module_enabled(module) %}
-    {%- set known_modules = ['sustainers'] -%}
+    {%- set known_modules = ['sustainers', 'pack'] -%}
     {%- set modules = var('modules', {}) or {} -%}
     {%- for m in modules -%}
         {%- if m not in known_modules -%}

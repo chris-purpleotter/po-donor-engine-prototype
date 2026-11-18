@@ -365,6 +365,18 @@ segment_sets:
 
 ---
 
+## v0.3.1: the Planning Pack export (2026-11-18)
+
+- **New tier `export`** (schema `pocore`, module `pack`, on by default): tables shaped for one consumer, the Planning Pack (`pocore-pack`, its own repo).
+  - `pocore_export__pack_cube`: one row per period (now / recent / same_season) × combination of the client's dropdown values; people, gave, revenue of givers and non-givers. Counts and sums only. Portable SQL (dbt macros), tested: the "now" rows add up to the population.
+  - `pocore_export__pack_settings`: client name, window, holdout, minimum group size, engine version, as_of.
+  - `pocore_export__pack_dimensions`: the dropdowns and bands, including the band SQL the pack writes into the segment rules it generates.
+- **All client config lives in the client's dbt project** (`vars: po_core: pack:`; defaults and validation in `macros/pocore_pack_settings.sql`). The engine and the pack are client-agnostic.
+- **The pack reads through dbt** (`dbt show`, using the client's profiles.yml and environment login): no credentials of its own, no warehouse-specific code. It checks `engine_version` and fails clearly if incompatible.
+- **Delivery:** a step right after `dbt build` in the client's job (`pocore-pack build --project-dir . --target prod`), so a pack only ships when the engine's tests pass. Engine pinned by git tag, pack by version (also a git tag); both semver.
+
+---
+
 ## 10. Work list (v0.2.0)
 
 1. **Renames:** package, prefix, `donor` → `person`, folders, schemas. No logic changes, so every number must equal v0.1.2.
