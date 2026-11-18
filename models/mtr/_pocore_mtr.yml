@@ -1,0 +1,86 @@
+version: 2
+
+# Internal metrics layer (SPEC D13): the full calculation tables the srv models read from.
+# Not exposed to BI tools or LLMs — they mix whole-segment and slice rows and many
+# KPI/window/lookback/holdout combinations, so naive aggregation gives wrong numbers.
+
+models:
+  - name: pocore_mtr__segment_baselines
+    description: >
+      One row per segment x breakdown x breakdown_value x KPI x window x anchor date: segment
+      size (n) and the rate (gave) or capped mean (revenue_per_donor) for that anchor.
+      breakdown = 'all' is the whole segment. Rows with is_window_complete = false are partial.
+    data_tests:
+      - pocore_unique_combination:
+          arguments:
+            columns: ['segment_id', 'breakdown', 'breakdown_value', 'kpi_id', 'outcome_window_days', 'anchor_date']
+    columns:
+      - name: segment_id
+        data_tests: [not_null]
+      - name: breakdown
+        data_tests: [not_null]
+      - name: breakdown_value
+        data_tests: [not_null]
+      - name: kpi_id
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['gave', 'retained', 'revenue_per_donor']
+      - name: anchor_date
+        data_tests: [not_null]
+
+  - name: pocore_mtr__person_giving_year
+    description: >
+      One row per donor x (fiscal) giving year with at least one real eligible gift, with the
+      annual donor_status: New, Second year, Continuing, Reactivated, Reactivated - second year.
+      Individuals only; deceased included (they gave in those years).
+    data_tests:
+      - pocore_unique_combination:
+          arguments:
+            columns: ['person_id', 'giving_year']
+    columns:
+      - name: donor_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['New', 'Second year', 'Continuing', 'Reactivated', 'Reactivated - second year']
+
+  - name: pocore_mtr__sustainer_month
+    description: >
+      One row per sustainer x month since their first recurring payment (month 1), for months that
+      have started by as_of: gave (a real recurring payment that month), amount (net recurring
+      revenue), is_observed (the month is over). Donor-level: restarts keep the original start.
+    data_tests:
+      - pocore_unique_combination:
+          arguments:
+            columns: ['person_id', 'month_number']
+    columns:
+      - name: month_number
+        data_tests: [not_null]
+      - name: is_observed
+        data_tests: [not_null]
+
+  - name: pocore_mtr__segment_flows
+    description: >
+      One row per segment x snapshot date: donors_entering (in the segment now, not at the previous
+      month-end) and donors_leaving (the reverse). Null for the first snapshot in the window.
+    data_tests:
+      - pocore_unique_combination:
+          arguments:
+            columns: ['segment_id', 'snapshot_date']
+
+  - name: pocore_mtr__segment_power
+    description: >
+      One row per segment x breakdown x breakdown_value x KPI x window x baseline lookback x
+      holdout %: pooled and recent baselines, stability, detectable lift (pooled and vs recent),
+      is_testable, readable-by date.
+    data_tests:
+      - pocore_unique_combination:
+          arguments:
+            columns: ['segment_id', 'breakdown', 'breakdown_value', 'kpi_id', 'outcome_window_days', 'baseline_lookback_months', 'holdout_pct']
+    columns:
+      - name: is_unstable
+        data_tests: [not_null]
+      - name: is_testable
+        data_tests: [not_null]

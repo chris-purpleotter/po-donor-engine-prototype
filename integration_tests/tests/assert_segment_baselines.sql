@@ -19,7 +19,7 @@ with expected as (
 
 select e.*, a.n as actual_n, a.value as actual_value, a.is_window_complete as actual_complete
 from expected as e
-left join {{ ref('pode_mtr__segment_baselines') }} as a
+left join {{ ref('pocore_mtr__segment_baselines') }} as a
     on  a.segment_id      = e.segment_id
     and a.breakdown       = e.breakdown
     and a.breakdown_value = e.breakdown_value

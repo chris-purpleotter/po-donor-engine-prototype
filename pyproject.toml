@@ -1,7 +1,7 @@
 [project]
-name = "po-donor-engine"
-version = "0.1.0"
-description = "Dev tooling for the po_donor_engine dbt package (not needed by clients installing the package)"
+name = "po-core"
+version = "0.2.0"
+description = "Dev tooling for the po_core dbt package (not needed by clients installing the package)"
 requires-python = ">=3.12"
 dependencies = [
     # Same dbt minor version as po-nonprofit-analytics (the first project the engine plugs into).

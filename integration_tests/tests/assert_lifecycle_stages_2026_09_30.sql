@@ -13,7 +13,7 @@
 -- D10 capital-campaign gift excluded; 2025-06-01  -> 486 days -> lapsed
 
 with expected as (
-    select 'D01' as donor_id, 'lapsed' as expected_stage union all
+    select 'D01' as person_id, 'lapsed' as expected_stage union all
     select 'D02', 'deep_lapsed' union all
     select 'D03', 'active'      union all
     select 'D04', 'lapsed'      union all
@@ -26,13 +26,13 @@ with expected as (
 ),
 
 actual as (
-    select donor_id, lifecycle_stage
-    from {{ ref('pode_ftr__donor_snapshot') }}
+    select person_id, lifecycle_stage
+    from {{ ref('pocore_ftr__person_snapshot') }}
     where snapshot_date = cast('2026-09-30' as date)
 )
 
-select e.donor_id, e.expected_stage, a.lifecycle_stage as actual_stage
+select e.person_id, e.expected_stage, a.lifecycle_stage as actual_stage
 from expected as e
-left join actual as a on a.donor_id = e.donor_id
+left join actual as a on a.person_id = e.person_id
 where a.lifecycle_stage is null
    or a.lifecycle_stage != e.expected_stage

@@ -10,7 +10,7 @@
 -- D10 @ 2026-02-28: next gift is the excluded capital-campaign gift -> gave_90d 0, revenue_90d 0
 
 with expected as (
-    select 'D01' as donor_id, cast('2024-09-30' as date) as anchor_date, 1 as gave_90d, 1 as gave_365d, 75.0  as revenue_90d, true  as is_complete_90d union all
+    select 'D01' as person_id, cast('2024-09-30' as date) as anchor_date, 1 as gave_90d, 1 as gave_365d, 75.0  as revenue_90d, true  as is_complete_90d union all
     select 'D03', cast('2025-09-30' as date), 1, 1, 150.0, true  union all
     select 'D05', cast('2026-06-30' as date), 1, 1, 60.0,  true  union all
     select 'D05', cast('2026-07-31' as date), 0, 0, 40.0,  false union all
@@ -20,9 +20,9 @@ with expected as (
 select e.*, a.gave_90d as actual_gave_90d, a.gave_365d as actual_gave_365d,
        a.revenue_90d as actual_revenue_90d, a.is_complete_90d as actual_is_complete_90d
 from expected as e
-left join {{ ref('pode_ftr__kpi_outcomes') }} as a
-    on a.donor_id = e.donor_id and a.anchor_date = e.anchor_date
-where a.donor_id is null
+left join {{ ref('pocore_ftr__kpi_outcomes') }} as a
+    on a.person_id = e.person_id and a.anchor_date = e.anchor_date
+where a.person_id is null
    or a.gave_90d        != e.gave_90d
    or a.gave_365d       != e.gave_365d
    or a.revenue_90d     != e.revenue_90d

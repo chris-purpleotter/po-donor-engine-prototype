@@ -1,0 +1,48 @@
+{#
+  The engine's standard segments (SPEC §5a). Identical for every client; changing a
+  rule means a new _vN id and a MAJOR release (D12). Clients add their own with the
+  `segments` var (ids prefixed `cust_`).
+
+  Each segment: id, label, rule (a SQL WHERE condition over pocore_ftr__person_snapshot
+  columns), and primary_window_days — the window that matters most for that group,
+  used for the headline numbers in the srv summary tables:
+    new -> 90 (second gift), lapsed -> 180 (reactivation), others -> 365 (retention).
+  primary_kpi (optional, default 'gave'): the KPI those headline numbers use. Sustainers use
+  'retained' (still an active sustainer at the end of the window); for everyone else the
+  question is whether they gave a qualifying gift.
+  The default filter (individuals, not deceased) is added by pocore_seg__membership.
+#}
+
+{% macro pocore_standard_segments() %}
+    {{ return([
+        {'id': 'std_prospect_v1',    'label': 'Prospects (no gifts yet)',               'rule': "lifecycle_stage = 'prospect'",    'primary_window_days': 365},
+        {'id': 'std_new_v1',         'label': 'New donors (first gift < 90 days)',      'rule': "lifecycle_stage = 'new'",         'primary_window_days': 90},
+        {'id': 'std_active_v1',      'label': 'Active donors (gave in last 12 months)', 'rule': "lifecycle_stage = 'active'",      'primary_window_days': 365},
+        {'id': 'std_lapsed_v1',      'label': 'Lapsed donors (13-24 months)',           'rule': "lifecycle_stage = 'lapsed'",      'primary_window_days': 180},
+        {'id': 'std_deep_lapsed_v1', 'label': 'Deep lapsed donors (24+ months)',        'rule': "lifecycle_stage = 'deep_lapsed'", 'primary_window_days': 365},
+        {'id': 'std_sustainer_v1',   'label': 'Sustainers (active monthly donors)',     'rule': "lifecycle_stage = 'sustainer'",   'primary_window_days': 365, 'primary_kpi': 'retained'}
+    ]) }}
+{% endmacro %}
+
+
+{#
+  Every segment the engine builds: standard + the client's custom `segments` var.
+  Custom segments may set primary_window_days (otherwise summary_default_window_days) and
+  primary_kpi ('gave' or 'retained'; otherwise 'gave').
+#}
+{% macro pocore_all_segments() %}
+    {%- set out = [] -%}
+    {%- for s in pocore_standard_segments() + var('segments', []) -%}
+        {%- do out.append({
+            'id': s.id,
+            'label': s.label,
+            'rule': s.rule,
+            'primary_window_days': s.get('primary_window_days', var('summary_default_window_days')),
+            'primary_kpi': s.get('primary_kpi', 'gave')
+        }) -%}
+        {%- if out[-1].primary_kpi not in ['gave', 'retained'] -%}
+            {{ exceptions.raise_compiler_error("po_core: segment " ~ s.id ~ " primary_kpi must be 'gave' or 'retained', got '" ~ out[-1].primary_kpi ~ "'") }}
+        {%- endif -%}
+    {%- endfor -%}
+    {{ return(out) }}
+{% endmacro %}

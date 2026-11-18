@@ -13,7 +13,7 @@ labelled as (
 
     select
         Id                                                   as gift_id,
-        ContactId                                            as donor_id,
+        ContactId                                            as person_id,
         cast(CloseDate as date)                              as gift_date,
         case when RecordType = 'Refund'
              then -abs(Amount) else Amount end               as amount,
@@ -33,7 +33,7 @@ labelled as (
 
 select
     gift_id,
-    donor_id,
+    person_id,
     gift_date,
     amount,
     gift_type,
@@ -43,11 +43,11 @@ select
 
     -- Engine default + this client's rule. coalesce() matters: campaign_code is
     -- often null, and `null != 'X'` is NULL (not true), which would fail not_null.
-    {{ po_donor_engine.pode_default_kpi_eligible('gift_category') }}
+    {{ po_core.pocore_default_kpi_eligible('gift_category') }}
         and coalesce(campaign_code, '') != 'CAPITAL-2026'    as is_kpi_eligible,
 
     case
-        when not {{ po_donor_engine.pode_default_kpi_eligible('gift_category') }}
+        when not {{ po_core.pocore_default_kpi_eligible('gift_category') }}
             then 'category_' || gift_category
         when campaign_code = 'CAPITAL-2026'
             then 'capital_campaign'

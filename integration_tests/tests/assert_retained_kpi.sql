@@ -11,7 +11,7 @@
 -- Also: every summary row uses 'retained' for sustainers and 'gave' for everyone else.
 
 with expected as (
-    select 'D05' as donor_id, cast('2026-03-31' as date) as anchor_date, 0 as retained_90d, 1 as retained_180d union all
+    select 'D05' as person_id, cast('2026-03-31' as date) as anchor_date, 0 as retained_90d, 1 as retained_180d union all
     select 'D05', cast('2026-04-30' as date), 1, 0 union all
     select 'D05', cast('2026-05-31' as date), 1, 0 union all
     select 'D05', cast('2026-06-30' as date), 1, 0 union all
@@ -19,18 +19,18 @@ with expected as (
 ),
 
 wrong_outcomes as (
-    select e.donor_id, cast(e.anchor_date as {{ dbt.type_string() }}) as detail
+    select e.person_id, cast(e.anchor_date as {{ dbt.type_string() }}) as detail
     from expected as e
-    left join {{ ref('pode_ftr__kpi_outcomes') }} as a
-        on a.donor_id = e.donor_id and a.anchor_date = e.anchor_date
-    where a.donor_id is null
+    left join {{ ref('pocore_ftr__kpi_outcomes') }} as a
+        on a.person_id = e.person_id and a.anchor_date = e.anchor_date
+    where a.person_id is null
        or a.retained_90d  != e.retained_90d
        or a.retained_180d != e.retained_180d
 ),
 
 wrong_summary_kpi as (
-    select segment_id as donor_id, primary_kpi as detail
-    from {{ ref('pode_srv__segment_summary') }}
+    select segment_id as person_id, primary_kpi as detail
+    from {{ ref('pocore__segment') }}
     where (segment_id = 'std_sustainer_v1') != (primary_kpi = 'retained')
 )
 

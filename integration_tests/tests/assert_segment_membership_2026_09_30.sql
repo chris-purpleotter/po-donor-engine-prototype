@@ -9,7 +9,7 @@
 -- cust_board_v1 (attr_is_board_member, a client extra column): D10 only.
 
 with expected as (
-    select 'std_lapsed_v1' as segment_id, 'D01' as donor_id union all
+    select 'std_lapsed_v1' as segment_id, 'D01' as person_id union all
     select 'std_lapsed_v1',      'D04' union all
     select 'std_lapsed_v1',      'D06' union all
     select 'std_lapsed_v1',      'D10' union all
@@ -23,19 +23,19 @@ with expected as (
 ),
 
 actual as (
-    select segment_id, donor_id
-    from {{ ref('pode_seg__membership') }}
+    select segment_id, person_id
+    from {{ ref('pocore_seg__membership') }}
     where snapshot_date = cast('2026-09-30' as date)
 )
 
-select 'missing' as problem, e.segment_id, e.donor_id
+select 'missing' as problem, e.segment_id, e.person_id
 from expected as e
-left join actual as a on a.segment_id = e.segment_id and a.donor_id = e.donor_id
-where a.donor_id is null
+left join actual as a on a.segment_id = e.segment_id and a.person_id = e.person_id
+where a.person_id is null
 
 union all
 
-select 'unexpected' as problem, a.segment_id, a.donor_id
+select 'unexpected' as problem, a.segment_id, a.person_id
 from actual as a
-left join expected as e on e.segment_id = a.segment_id and e.donor_id = a.donor_id
-where e.donor_id is null
+left join expected as e on e.segment_id = a.segment_id and e.person_id = a.person_id
+where e.person_id is null

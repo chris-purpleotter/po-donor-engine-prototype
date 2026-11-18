@@ -14,7 +14,7 @@
 -- 2026   1     0       1     4     0/3 = 0      (D05 new; D03, D04, D06, D10 lost) partial year
 
 with expected as (
-    select 2021 as giving_year, 1 as new_donors, 0 as second_year_donors, 1 as total_donors, 0 as lost_donors, cast(null as double) as new_donor_retention, false as is_partial_year union all
+    select 2021 as fiscal_year, 1 as new_donors, 0 as second_year_donors, 1 as total_donors, 0 as lost_donors, cast(null as double) as new_donor_retention, false as is_partial_year union all
     select 2022, 0, 0, 0, 1, 0.0, false union all
     select 2023, 2, 0, 2, 0, null, false union all
     select 2024, 1, 1, 2, 1, 0.5, false union all
@@ -25,9 +25,9 @@ with expected as (
 select e.*, a.new_donors as a_new, a.second_year_donors as a_second, a.total_donors as a_total,
        a.lost_donors as a_lost, a.new_donor_retention as a_retention, a.is_partial_year as a_partial
 from expected as e
-left join {{ ref('pode_srv__donor_movement') }} as a
-    on a.giving_year = e.giving_year
-where a.giving_year is null
+left join {{ ref('pocore__year') }} as a
+    on a.fiscal_year = e.fiscal_year
+where a.fiscal_year is null
    or a.new_donors         != e.new_donors
    or a.second_year_donors != e.second_year_donors
    or a.total_donors       != e.total_donors

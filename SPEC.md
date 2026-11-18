@@ -2,6 +2,8 @@
 
 Status: **draft** · 2026-11-10 · dbt package name: `po_donor_engine`
 
+> **v0.2.0 (branch `v0.2.0`):** the package is now `po_core` (prefix `pocore_`), the entity `donor` is `person`, and the serving layer is replaced by **foundation** and **certified** tables. **`DESIGN_v0.2.0.md` supersedes** this spec's §3 (serving outputs), D13 (naming) and the layer table, and adds the new rules. Model and macro names below still use the old `pode_` prefix; read them as `pocore_`. A full fold-in of the design into this spec is still to do.
+
 ---
 
 ## 1. Purpose and scope
@@ -123,9 +125,8 @@ MDE = (z₁₋α/₂ + z_power) · √(variance · (1/n_treatment + 1/n_holdout)
 | `holdout_grid` | [10, 15, 20, 30] |
 | `baseline_lookback_months` | [12, 24] |
 
-- Any of these can be overridden per experiment *before* launch.
-- At launch, the values used (including the baseline value behind the sample-size check) are recorded in the experiment config.
-- Results always use the launch values. Changing them after seeing data means a new experiment version, never a re-read.
+- These are planning settings. The values a client actually tests with are recorded in their `experiments` input before launch (pre-registration, §10).
+- Results always use the pre-registered values. Changing them after seeing data means a new experiment, never a re-read.
 
 Day-one deliverable phrased for the client: *"A 15% holdout on lapsed donors detects a 3-point reactivation lift, readable by May."*
 
@@ -174,7 +175,7 @@ Routine recurring payments don't count. **Upgrades to an existing schedule don't
 
 **Default segment filter** (applied unless a segment explicitly overrides it): `donor_type = 'individual' and not is_deceased`.
 
-**As-of dates (snapshots):** month-ends for the last `snapshot_lookback_months` (default **72**, i.e. 6 years) up to `var('as_of')`. Experiment launch dates are added later. Not daily.
+**As-of dates (snapshots):** month-ends for the last `snapshot_lookback_months` (default **72**, i.e. 6 years) up to `var('as_of')`. Not daily. (Experiment readouts anchor on the client's `assigned_date` in their own model, §10.)
 - **This limits snapshot dates, not history.** Features at every snapshot still use all past gifts (lifetime giving, first gift date, …).
 - **Validation:** the build fails if `snapshot_lookback_months < max(baseline_lookback_months) + max(KPI window in months)` (currently 24 + 12 = 36). Below that, power can't be computed.
 - **Size check:** about donors × 72 rows. For 200k donors that's ~14M rows, which is fine as a full rebuild on BigQuery or Snowflake.
@@ -249,7 +250,7 @@ union all
 ...
 ```
 
-- **Grain:** `segment_id × donor_id × snapshot_date`. Baselines, power and (later) assignment all read from this model.
+- **Grain:** `segment_id × donor_id × snapshot_date`. Baselines, power and (later) experiment balance checks all read from this model.
 - The query reads only `pode_ftr__donor_snapshot`, so a rule that references any other column fails at compile time. That is how "features only" is enforced.
 - The brackets stop an `or` in a rule from escaping the default filter.
 - Rules are raw SQL. That's fine while only we write them; a client-facing editor would need validation first (out of scope).
@@ -398,7 +399,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 |---|---|---|
 | core (always on) | can, snapshot, outcomes, segments, baselines, power, summary, trend, roster, test planning, movement, cohorts | donors + gifts |
 | `sustainers` | `pode_mtr__sustainer_month`, `pode_srv__sustainer_ltv` | recurring gifts (cost optional) |
-| future | experiments, upgrades, contact guardrails | launch records, `recurring_schedules`, contactability (§6.3) |
+| future | experiments, upgrades, contact guardrails | `experiments` + `experiment_assignments` (§10), `recurring_schedules`, contactability (§6.3) |
 
 - **Engine rule:** nothing outside a module may `ref()` a model inside it (dbt fails at parse time when the module is off).
 - **Switching a module off later doesn't drop its old tables:** dbt never drops models it no longer builds. Drop them by hand (or in the client's deploy script) so stale tables don't linger in `pode_srv`.
@@ -450,8 +451,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 - **D10 Warehouses:**
   - **BigQuery** (demo/dev) and **DuckDB/MotherDuck** are first-class from day one. `integration_tests/` run on local DuckDB: fast, free, no credentials, and it keeps the SQL portable.
   - **Snowflake** is added when the first Snowflake client arrives.
-  - Use dbt's cross-database macros (`dbt.dateadd`, `dbt.datediff`, `dbt.type_*`). Gaps get engine macros using `adapter.dispatch`: hashing for assignment, month differences.
-  - Arms only need to be stable within a client's warehouse; the launch record covers a warehouse migration.
+  - Use dbt's cross-database macros (`dbt.dateadd`, `dbt.datediff`, `dbt.type_*`). Gaps get engine macros using `adapter.dispatch`: hashing (for an optional suggested split, §10), month differences.
   - **Passing on DuckDB is not proof of portability.** DuckDB accepts SQL that BigQuery rejects, so every engine change is also built on BigQuery before release. Known traps (all hit during step C):
     1. Duplicate column names, e.g. `select x.*, y.col` where `x.*` already has `col` (DuckDB silently renames).
     2. `GROUP BY` on a literal (`group by 'all'`): just omit the literal.
@@ -460,6 +460,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
     5. `dbt.generate_series` yields decimals on BigQuery: cast to `dbt.type_int()` when used as a year or count.
     6. Jinja: a SQL `--` comment right before a `{%-` block can swallow the following SQL (whitespace trimming).
     7. Doubled-quote escapes in string literals (`'month''s'`): BigQuery reads two adjacent literals. Reword fixed text; quote config values (e.g. segment labels) with `pode_string_literal()`.
+    8. `least()` / `greatest()`: NULL handling differs (BigQuery, Snowflake and Databricks return NULL if any argument is NULL; Postgres, Redshift and DuckDB ignore NULLs), and SQL Server only has them from 2022. Use `pocore_clamp(expr, low, high)` (a plain `case`). Found in v0.2.0: `greatest(NULL, 0)` in segment power returned 0 on DuckDB and NULL on BigQuery.
 - **D11 Z-values for power** come from a lookup table in the engine macro `pode_z()` (probability → z). SQL has no inverse-normal function and dbt Jinja has no `math` module. An α or power value not in the table fails the build clearly; add a row to support it. (Originally specified as a seed; a macro is simpler, with no seed loading or column-type issues.)
 - **D12 Versioning (semantic versioning: MAJOR.MINOR.PATCH):**
 
@@ -512,7 +513,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 2. **Qualifying gift:** one-time gifts plus the first payment of a new schedule. Upgrades don't count on day one.
 3. **Revenue per donor:** added as a capped-mean KPI. The serving shape is generalized to `metric_type` / `value` / `variance`.
 4. **Segment config:** YAML (D8).
-5. **Statistical settings:** defaults α = 0.05 two-sided, power = 0.8, holdout grid 10/15/20/30. Vars, overridable per experiment, locked at launch (§3.2).
+5. **Statistical settings:** defaults α = 0.05 two-sided, power = 0.8, holdout grid 10/15/20/30. Vars for planning; the values actually used are pre-registered in the client's `experiments` input (§10).
 6. **Baseline:** trailing 12 complete anchors by default, pooled (weighted by n). It's a lever, and the power table also shows 24 months for comparison (§3.2).
 7. **Current-value attributes:** accept the small error for region and acquisition; giving-driven fields are banned. SCD history is a future optional input (D7, §6.3).
 8. **Sustainer detection:** the gift heuristic by default. The optional `recurring_schedules` input replaces it when the client has a dated schedule table, and it's required for sustainer KPIs (§5, §6.3).
@@ -533,19 +534,19 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 
 ---
 
-## 10. Future work: the launch record (accepted, not designed yet)
+## 10. Future work: experiments (assignment is an INPUT)
 
-The launch record (who was assigned to each arm when an experiment launched) is **the one dataset we create rather than derive**. The holdout list exists nowhere else, and losing it makes running experiments unreadable. It's inherent to holdout testing, so it's accepted. Principles for the experiment-phase spec:
+**Decided 2026-11-18, replacing the earlier "launch record" design.** The engine does not run tests and does not create or store who is in which group. People run tests in their own tools (CRM campaign members, an email platform's holdout, a mail house's split), and the assignment comes back to the engine as an optional **contract input**. The engine stays a pure function of its inputs (D9), with nothing write-once to protect.
 
-- **Contents:** `experiment_launches` (one row per experiment: segment rule text as launched, salt, holdout %, KPI and window, α/power, baseline, `as_of`, engine version, row counts, checksum) and `experiment_assignments` (`experiment_id`, `donor_id`, `arm`). It records intended treatment, not receipt; the send log covers receipt.
-- **Write-once source of truth:** immutable files in object storage with versioning and a retention lock (GCS, S3 Object Lock, Azure immutable blob). The warehouse table is loaded from those files, so it's derived and can be rebuilt (D9 holds).
-- **Launch is a guarded step outside `dbt build`:**
-  - refuses an existing experiment id;
-  - checks preconditions;
-  - writes the files and verifies the round trip;
-  - only then exports the treatment list to the comms tool.
-- **Checked on every build:** row counts and checksum match, arms valid, no donor in two active experiments.
-- **Open risks:**
-  - Donor merges after launch need a merge map (old → surviving `donor_id`) as an input.
-  - Hosting: the client's cloud vs ours, to settle in the SOW.
-  - Comms-tool deviations are caught by the compliance check against the send log.
+- **Inputs** (optional, unlock the experiments module):
+  - `experiment_assignments`: `experiment_id`, `person_id`, `arm` (`treatment` / `holdout`, or several arms), `assigned_date`. It records intended treatment, not receipt; contact history covers receipt.
+  - `experiments`: one row per experiment with what was decided **before** launch (pre-registration): name, primary KPI, outcome window, intended holdout %, α / power. Results always use these values; changing them after seeing data means a new experiment, never a re-read.
+- **Readout:** the same forward outcome windows the engine already computes, anchored on `assigned_date` instead of a month-end (DESIGN §9.3, §9.6).
+- **The engine checks the input instead of trusting it** (health checks plus a "trustworthy?" flag on the readout):
+  - group sizes vs the intended holdout % (sample ratio mismatch);
+  - balance at launch: the groups compared on giving history as of `assigned_date`, using `foundation__person__month` (a hand-picked holdout shows up here);
+  - no person in two active experiments; every `person_id` exists;
+  - contamination, once contact history exists: were holdout people contacted anyway?
+- **Test planning is unchanged:** detectable lift, holdout options and readable-by dates are pure analysis the client uses *before* setting a test up.
+- **Optional helper:** a deterministic suggested split (hash of `person_id` + `experiment_id`) clients can export. A pure function, so idempotent; the input is still the record of who was actually assigned.
+- **Open:** person merges after launch need a merge map (old → surviving `person_id`) as an input.
