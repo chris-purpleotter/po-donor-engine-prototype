@@ -25,40 +25,11 @@ select
     s.person_id,
     s.snapshot_date                        as month_end_date,
 
-    -- person attributes (current values, D7)
-    s.created_at,
-    s.person_type,
-    s.is_deceased,
-    s.region,
-    s.acquisition_channel,
-    s.acquisition_theme,
-    {%- for c in var('people_extra_columns') %}
-    s.attr_{{ c }},
+    -- person attributes (current values, D7) and state as of month_end_date: the shared column
+    -- list (macros/pocore_snapshot_columns.sql), so this table and pocore_foundation__person match
+    {%- for c in pocore_snapshot_columns('attributes') + pocore_snapshot_columns('state') %}
+    s.{{ c }},
     {%- endfor %}
-
-    -- derived state as of month_end_date
-    s.lifecycle_stage,
-    s.is_new_donor,
-    s.is_reactivated,
-    s.is_recurring_active,
-    s.gave_prior_year_not_ytd,
-
-    -- ingredients as of month_end_date
-    s.first_gift_date,
-    s.first_gift_amount,
-    s.first_gift_band,
-    s.first_gift_year,
-    s.last_gift_date,
-    s.last_gift_year,
-    s.days_since_first_gift,
-    s.days_since_last_gift,
-    s.days_since_last_recurring,
-    s.gift_count_12m,
-    s.net_giving_12m,
-    s.gift_count_lifetime,
-    s.net_giving_lifetime,
-    s.net_giving_ytd,
-    s.net_giving_prior_year,
 
     -- outcomes after month_end_date
     {%- for w in windows %}

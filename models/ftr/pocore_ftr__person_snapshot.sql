@@ -84,6 +84,7 @@ per_snapshot as (
         max(case when not g.is_refund then g.gift_date end)                          as last_gift_date,
         max(case when not g.is_refund and g.gift_type = 'recurring' then g.gift_date end) as last_recurring_date,
         max(case when g.is_reactivation then g.gift_date end)                        as last_reactivation_date,
+        count(case when g.is_reactivation then 1 end)                               as reactivations_lifetime,
 
         count(case when not g.is_refund then 1 end)                                  as gift_count_lifetime,
         coalesce(sum(g.amount), 0)                                                   as net_giving_lifetime,
@@ -185,6 +186,8 @@ select
     f.is_reactivated,
     f.is_recurring_active,
     f.days_since_last_recurring,                                -- building block: custom sustainer windows
+    f.days_since_reactivation,                                  -- days since the latest comeback (null: never)
+    f.reactivations_lifetime,                                   -- comebacks after a 12+ month gap, to date
 
     -- lifecycle stage (D6: first match wins)
     case

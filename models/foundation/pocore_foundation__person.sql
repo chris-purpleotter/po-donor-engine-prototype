@@ -20,39 +20,17 @@ with latest as (
 
 select
     p.person_id,
-    p.created_at,
-    p.person_type,
-    p.is_deceased,
-    p.region,
-    p.acquisition_channel,
-    p.acquisition_theme,
-    {%- for c in var('people_extra_columns') %}
-    a.attr_{{ c }},
+    -- who they are: from the contract, so people created after the latest month-end are here too
+    {%- for c in pocore_snapshot_columns('attributes') %}
+    {{ 'a.' if c.startswith('attr_') else 'p.' }}{{ c }},
     {%- endfor %}
 
     l.as_of_month_end,
 
-    -- current state (derived)
-    s.lifecycle_stage,
-    s.is_new_donor,
-    s.is_reactivated,
-    s.is_recurring_active,
-    s.gave_prior_year_not_ytd,
-
-    -- ingredients
-    s.first_gift_date,
-    s.first_gift_amount,
-    s.first_gift_band,
-    s.last_gift_date,
-    s.days_since_first_gift,
-    s.days_since_last_gift,
-    s.days_since_last_recurring,
-    s.gift_count_12m,
-    s.net_giving_12m,
-    s.gift_count_lifetime,
-    s.net_giving_lifetime,
-    s.net_giving_ytd,
-    s.net_giving_prior_year
+    -- their state at the latest month-end: the shared column list (macros/pocore_snapshot_columns.sql)
+    {%- for c in pocore_snapshot_columns('state') %}
+    s.{{ c }}{{ ',' if not loop.last }}
+    {%- endfor %}
 from {{ ref('pocore_can__people') }} as p
 cross join latest as l
 left join {{ ref('pocore_can__person_attributes') }} as a
