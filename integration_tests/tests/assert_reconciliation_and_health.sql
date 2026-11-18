@@ -16,11 +16,11 @@
 --   empty_segments      std_new_v1 only (no first gift in the last 90 days) -> 1, warn
 
 with recon as (
-    select * from {{ ref('pode_srv__reconciliation') }}
+    select * from {{ ref('pocore_admin__reconciliation') }}
 ),
 
 health as (
-    select * from {{ ref('pode_srv__project_health') }}
+    select * from {{ ref('pocore_admin__health') }}
 ),
 
 recon_checks as (

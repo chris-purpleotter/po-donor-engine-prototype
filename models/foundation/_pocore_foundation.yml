@@ -1,0 +1,112 @@
+version: 2
+
+# FOUNDATION (DESIGN_v0.2.0 §1, §6.1): reliable and FLEXIBLE. Tested, grain-specific facts and
+# the engine's standard definitions, for advanced analysts to build on (Kimball modelling, custom
+# models in the client project, prediction models). Every certified table is built from these.
+# Grain = the table name; the key columns are tested unique.
+
+models:
+  - name: pocore_foundation__person
+    description: >
+      One row per person: everyone in the `people` contract, with or without gifts. Contract
+      attributes, the client's attr_* columns, and the person's state today (from the latest
+      month-end, as_of_month_end): derived values (lifecycle_stage, flags) next to their
+      ingredients (days since last gift, 12-month and lifetime giving). Columns are as of
+      as_of_month_end, so they are not summable over time, but they ARE summable across people
+      (one row each).
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id']}
+    columns:
+      - name: person_id
+        data_tests: [not_null]
+      - name: as_of_month_end
+        description: "The month-end the state columns describe (the latest snapshot)."
+      - name: lifecycle_stage
+        description: "Exactly one of sustainer / new / active / lapsed / deep_lapsed / prospect, by the engine's fixed rules (D6). Null for people created after as_of_month_end."
+
+  - name: pocore_foundation__gift
+    description: >
+      One row per gift: every gift and refund in the `gifts` contract, eligible or not, so totals
+      tie exactly to the input. Contract columns, attr_* gift columns, and the engine's
+      gift-level definitions: is_qualifying (counts as "gave"), is_recurring_payment,
+      gift_number / is_first_gift, is_reactivation_gift, days_since_previous_gift, and
+      stage_at_gift. Events, so they roll up to ANY period (month, quarter, fiscal year).
+      Person attributes are repeated for grouping; count people with count(distinct person_id).
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['gift_id']}
+    columns:
+      - name: gift_id
+        data_tests: [not_null]
+      - name: is_qualifying
+        description: "Counts as 'gave' (KPI gave): eligible, not a refund, and one-time or the first payment of a recurring schedule (a new sign-up). Routine recurring payments are false."
+      - name: is_recurring_payment
+        description: "Eligible, non-refund recurring payment (the basis of sustainer status and the retained KPI)."
+      - name: gift_number
+        description: "1, 2, 3 ... among the person's eligible, non-refund gifts. Null for refunds and ineligible gifts."
+      - name: is_first_gift
+        description: "The person's first eligible, non-refund gift: counting these by period = new donors acquired."
+      - name: is_reactivation_gift
+        description: "Eligible, non-refund gift more than 365 days after the person's previous one."
+      - name: stage_at_gift
+        description: "The person's lifecycle stage at the last month-end before the gift. Null for gifts before the snapshot history starts."
+
+  - name: pocore_foundation__person__month
+    description: >
+      One row per person x month-end (the last snapshot_lookback_months month-ends, from when
+      the person existed). Each row looks BACKWARD (features as of that date, using only earlier
+      gifts: derived values next to ingredients) and FORWARD (outcomes in the 30/90/180/365 days
+      after it: gave_<N>d, revenue_<N>d, retained_<N>d for 90+, is_complete_<N>d). Every engine
+      baseline is built from this table; it is also a leakage-safe training set for prediction.
+      Running totals (lifetime, 12-month, ytd) are NOT summable across months.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'month_end_date']}
+    columns:
+      - name: person_id
+        data_tests: [not_null]
+      - name: month_end_date
+        data_tests: [not_null]
+      - name: is_complete_90d
+        description: "True when the 90 days after month_end_date have fully happened by as_of. Rows where this is false have partial outcomes: never treat them as final. (Same for each window.)"
+
+  - name: pocore_foundation__person__segment__month
+    description: >
+      One row per person x segment x month-end: which segments each person was in at each
+      month-end. Segments may overlap. Join to pocore_foundation__person__month on
+      (person_id, month_end_date) for features and outcomes.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'segment_id', 'month_end_date']}
+
+  - name: pocore_foundation__person__segment
+    description: >
+      One row per person x segment, as of the latest month-end: who is in each segment right now
+      (the roster), with the attributes needed to act on the list. Counting rows for one segment =
+      its people. A person can appear in several segments, so filter to one segment first.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'segment_id']}
+
+  - name: pocore_foundation__person__year
+    description: >
+      One row per person x fiscal year (individuals; from the year they first appear to now). That
+      year's giving (gave, gifts, amount_given: summable), movement_status (New / Second year /
+      Continuing / Reactivated / Reactivated - second year / Lost / Not giving / Never given), and
+      the journey: stage at the year's last month-end and 1, 2, 3 years before. For a Sankey,
+      filter ONE fiscal_year and count people by stage_1y_ago -> stage.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'fiscal_year']}
+    columns:
+      - name: movement_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['New', 'Second year', 'Continuing', 'Reactivated', 'Reactivated - second year', 'Lost', 'Not giving', 'Never given']
+      - name: stage_date
+        description: "The month-end the stage describes: the fiscal year's last month-end (the latest month-end for the current year)."
+      - name: stage_1y_ago
+        description: "Lifecycle stage 12 months before stage_date. Null before the snapshot history starts or before the person existed."

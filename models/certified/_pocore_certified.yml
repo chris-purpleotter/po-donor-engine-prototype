@@ -1,0 +1,163 @@
+version: 2
+
+# CERTIFIED (DESIGN_v0.2.0 §1, §5.3, §6.2): reliable and OPINIONATED. Our view of what to look at,
+# for business users and dashboards: the schema BI tools connect to. Built only from foundation
+# (directly, or through the engine's statistics computed from foundation).
+# Rules: the table name states the grain (at most three levels); the key columns are tested unique;
+# standard columns are the same for every client; summable columns are summable, and rates come
+# with their numerators and denominators. Tool-neutral: no BI metadata here (clients add their
+# tool's semantic layer on thin views in their own project).
+
+models:
+  - name: pocore__segment
+    description: >
+      One row per segment, as of the latest month-end. People in the segment now; how they normally
+      do on the segment's primary KPI over its primary window (rate_recent = today's normal,
+      rate_typical = pooled over the last 12 months, rate_same_season = the same months last year);
+      whether a test is worth running (detectable_lift, is_testable, readable_by at the default
+      holdout); and what improvement is worth (value_per_point: each +1 point on the KPI;
+      value_of_detectable_lift: the smallest provable lift). Includes split segments (split_by /
+      split_value: one per value of an attribute, e.g. "Lapsed — Web") and set segments
+      (segment_set_id: non-overlapping populations). Segments overlap in general (a split overlaps
+      its parent; custom ones overlap standard ones): only within ONE segment_set_id, or ONE
+      parent's split, do people_in_segment add up.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['segment_id']}
+    columns: &segment_columns
+      - name: parent_segment_id
+        description: "The configured segment this row comes from (its KPI and window are used). Equals segment_id for configured segments; null for a set's remainder."
+      - name: split_by
+        description: "For split segments: the attribute split on (e.g. acquisition_channel). Null otherwise."
+      - name: split_value
+        description: "For split segments: the attribute's value. Rows with the same parent_segment_id and split_by add up to the parent."
+      - name: segment_set_id
+        description: "For set segments: the set. A set's segments don't overlap (each person is in the first one they match), so their people add up."
+      - name: month_end_date
+        description: "The month-end these numbers describe (the latest snapshot)."
+      - name: people_in_segment
+        description: "People in the segment at month_end_date."
+      - name: outcome_window_days
+        description: "The segment's primary window (new 90, lapsed 180, others 365)."
+      - name: primary_kpi
+        description: "What success means for this segment: 'gave' (a qualifying gift within the window) or 'retained' (still an active sustainer at the end of it; used for sustainers)."
+      - name: rate_recent
+        description: "Share of the segment achieving the primary KPI within the window, over the most recent complete months: today's normal."
+      - name: rate_typical
+        description: "The same, pooled over the last 12 complete months."
+      - name: rate_same_season
+        description: "The same, for the same months last year (snapshots 11-13 months ago). A test launched now runs through the same season, so this is the planning baseline. Null with too little history."
+      - name: planning_basis
+        description: "Which rate the detectable lift uses: 'same_season', or 'recent' when there isn't a year of history."
+      - name: is_unstable
+        description: "Recent and 12-month rates differ a lot, or the months swing widely."
+      - name: revenue_per_person_recent
+        description: "Average capped revenue per person in the segment over the window, recent months."
+      - name: detectable_lift
+        description: "Smallest lift (as a fraction) a test with holdout_pct held out could reliably detect, vs the planning baseline (planning_basis)."
+      - name: is_testable
+        description: "Whether a test here could realistically give a clear answer (detectable lift <= +50% relative)."
+      - name: revenue_per_extra_donor
+        description: "What one extra success has been worth: capped window revenue among people who achieved the KPI minus among those who didn't. Observational."
+      - name: value_per_point
+        description: "What each +1 percentage point on the KPI is worth over the window: people x 0.01 x revenue_per_extra_donor. The headline for 'where is the money'. Rough sizing, not a forecast."
+      - name: extra_donors_at_detectable_lift
+        description: "Extra people achieving the KPI if the rate rose by exactly the detectable lift."
+      - name: value_of_detectable_lift
+        description: "Value of the smallest provable lift (extra_donors_at_detectable_lift x revenue_per_extra_donor). A floor for test planning; shrinks with bigger holdouts, so don't rank segments by it."
+
+  - name: pocore__segment__month
+    description: >
+      One row per segment x month-end (whole segments). people_in_segment is the count at that
+      month-end (don't add it across months). gave_rate_<N>d / retained_rate_<N>d (90+ days) /
+      revenue_per_person_<N>d describe what those people did in the N days after; drop rows where
+      is_complete_<N>d is false. To pool over several months use the counts:
+      sum(gave_count_<N>d) / sum(people_in_segment), never an average of the rates.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['segment_id', 'month_end_date']}
+    columns:
+      - name: people_in_segment
+        description: "People in the segment at that month-end (point in time: don't add across months)."
+      - name: people_entering
+        description: "People in the segment at this month-end who weren't at the previous one (a monthly flow: fine to add across months). Null for the first month."
+      - name: people_leaving
+        description: "People in the segment at the previous month-end who aren't at this one (monthly flow). Null for the first month."
+
+  - name: pocore__segment__test_option
+    description: >
+      One row per segment x test option (outcome window x holdout %), whole segments, on each
+      segment's primary KPI. Compare options: a bigger holdout detects smaller lifts but withholds
+      the treatment from more people. Nothing here should be added up.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['segment_id', 'outcome_window_days', 'holdout_pct']}
+
+  - name: pocore__year
+    description: >
+      One row per fiscal year (the whole file, individuals): the donor movement funnel.
+      total_donors = new + second_year + continuing + reactivated + reactivated_second_year, and it
+      balances: this year's total = last year's total - lost + new + reactivated. Retention rates
+      are vs last year, with their denominators. is_partial_year = current year to date.
+      has_full_history = false for the first 5 years of data, when New/Reactivated over-count.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['fiscal_year']}
+    columns:
+      - name: fiscal_year
+        description: "Fiscal year, named by the calendar year it ends in (calendar year when fiscal_year_start_month = 1)."
+      - name: lost_donors
+        description: "Gave last year, not this year."
+      - name: new_donor_retention
+        description: "Second-year donors / last year's new donors."
+      - name: overall_retention
+        description: "(Second year + continuing + reactivated second year) / last year's total donors."
+
+  - name: pocore__cohort__year
+    description: >
+      One row per first-gift cohort x fiscal year (cohort_type = 'first_gift'; cohort_year = fiscal
+      year of the first-ever gift). Follows each cohort through later years: total_donors (members
+      who gave that year, by annual status) and pct_of_cohort (the retention curve). Don't add
+      total_donors across years: the same person gives in several.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['cohort_type', 'cohort_year', 'fiscal_year']}
+    columns:
+      - name: years_since_acquisition
+        description: "0 = the acquisition year."
+      - name: pct_of_cohort
+        description: "Share of the cohort that gave this year."
+
+  - name: pocore__cohort__age
+    description: >
+      One row per sustainer cohort x month of life (cohort_type = 'first_recurring'; cohort_year =
+      fiscal year of the first recurring payment; age_months 1 = that month). Survival
+      (sustainers_giving / sustainers_observed), LTV to date, and when acquisition cost is supplied
+      CPA and LTV:CPA. sustainers_started is the cohort size, repeated on every row: don't sum it
+      over ages. Sustainers module only.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['cohort_type', 'cohort_year', 'age_months']}
+    columns: &cohort_age_columns
+      - name: sustainers_observed
+        description: "Starters who have reached this month of life (it has fully happened)."
+      - name: sustainers_giving
+        description: "Observed starters who made a recurring payment this month."
+      - name: survival_rate
+        description: "sustainers_giving / sustainers_observed. To pool cohorts: sum(sustainers_giving) / sum(sustainers_observed)."
+      - name: ltv_to_date
+        description: "Average recurring revenue per starter through this month (sum of monthly revenue per observed starter). Not summable."
+      - name: cost_per_new_sustainer
+        description: "Acquisition cost / paid starters (cost > 0). Null without acquisition_cost."
+      - name: ltv_to_cpa
+        description: "paid_ltv_to_date / cost_per_new_sustainer: revenue returned per $1 of acquisition cost by this month (paid starters on both sides)."
+
+  - name: pocore__cohort__age__breakdown
+    description: >
+      One row per sustainer cohort x month of life x breakdown value: the same columns as
+      pocore__cohort__age, split by acquisition channel (breakdown_by = 'acquisition_channel').
+      Within one breakdown_by, counts and revenue add up to the cohort. Sustainers module only.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['cohort_type', 'cohort_year', 'age_months', 'breakdown_by', 'breakdown_value']}
+    columns: *cohort_age_columns

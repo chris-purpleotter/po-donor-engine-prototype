@@ -1,9 +1,9 @@
-# po_donor_engine — reusable donor segmentation / experimentation engine.
+# po_core — reusable giving analytics engine: conformed contract in, foundation + certified tables out.
 # This is a dbt *package*: client projects install it via packages.yml.
-# See SPEC.md for the design and decisions (D1–D13).
+# See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
-name: 'po_donor_engine'
-version: '0.1.0'
+name: 'po_core'
+version: '0.3.1'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -14,35 +14,45 @@ require-dbt-version: [">=1.11.0", "<1.12.0"]
 
 model-paths: ["models"]
 macro-paths: ["macros"]
+analysis-paths: ["analyses"]   # examples to copy (compiled, never built): e.g. the segment explorer
 seed-paths: ["seeds"]
 test-paths: ["tests"]
 
 models:
-  po_donor_engine:
-    +schema: pode               # INTERNAL engine layers (can, ftr, seg, mtr) share this schema
+  po_core:
+    +schema: pocore_internal      # INTERNAL engine layers (can, ftr, seg, mtr): visible, unsupported, may change in any release
     +materialized: table
-    +tags: ['pode']             # select engine models with `tag:pode` regardless of client folder layout
+    +tags: ['pocore']             # select engine models with `tag:pocore` regardless of client folder layout
     can:
       +materialized: view       # canonical = checks over the client's conform models; no need to copy data
     ftr:
-      +tags: ['pode_ftr']
+      +tags: ['pocore_ftr']
     seg:
-      +tags: ['pode_seg']
+      +tags: ['pocore_seg']
     mtr:
-      +tags: ['pode_mtr']       # internal metrics: full calculation tables the srv models read
-    srv:
-      +schema: pode_srv         # the ONLY layer clients expose to BI tools / LLMs (D13)
-      +tags: ['pode_srv']
+      +tags: ['pocore_mtr']       # internal statistics: read foundation, feed certified
+    foundation:
+      +schema: pocore_foundation  # FOUNDATION: tested facts + definitions for advanced analysts (DESIGN §6.1)
+      +tags: ['pocore_foundation']
+    certified:
+      +schema: pocore             # CERTIFIED: our opinionated answers; the schema BI tools connect to (DESIGN §6.2)
+      +tags: ['pocore_certified']
+    admin:
+      +schema: pocore             # ADMIN: sign-off and health tables, next to certified
+      +tags: ['pocore_admin']
+    export:
+      +schema: pocore             # EXPORT: tables shaped for the Planning Pack (module 'pack')
+      +tags: ['pocore_export']
 
 vars:
-  po_donor_engine:
+  po_core:
     # Input mapping (engine slot -> client model NAME, not path).
-    # Clients override these under `vars: po_donor_engine:` in their own dbt_project.yml.
-    donors_model: donors
+    # Clients override these under `vars: po_core:` in their own dbt_project.yml.
+    people_model: donors
     gifts_model: gifts
     # Optional extra columns to bring through from each conform model (SPEC §6.5),
-    # exposed as attr_<name>. Donor attributes become snapshot columns (segments, breakdowns).
-    donors_extra_columns: []
+    # exposed as attr_<name>. Person attributes become snapshot columns (usable in segment rules and split_by).
+    people_extra_columns: []
     gifts_extra_columns: []
     # `as_of` deliberately has NO default: it must come from the client (env var PO_AS_OF). See D3.
     fiscal_year_start_month: 1        # 1 = calendar year; 4 = April, 7 = July ... (FY named by its end year)
@@ -50,12 +60,14 @@ vars:
     snapshot_lookback_months: 72      # month-end snapshots kept (history before still counts)
     recurring_active_days: 45         # heuristic window for is_recurring_active
     # KPIs (SPEC §4)
-    kpi_windows_days: [90, 180, 365]  # one gave_/revenue_ column per window
+    # KPI windows are FIXED by the engine (macro pocore_kpi_windows: 30/90/180/365, retained 90/180/365),
+    # not a var: every window is a column name, and columns must be the same for every client.
     revenue_cap: 1000                 # per-donor cap on revenue_Nd (outliers swamp means)
-    # Baselines (SPEC §3.1): snapshot columns to split each segment by. Current-value
-    # attributes only (D7). Every client has these three in the contract.
-    baseline_breakdowns: [acquisition_channel, region, first_gift_band]
-    # Power (SPEC §3.2) — overridable per experiment before launch, locked at launch
+    # Segments (DESIGN §6.2, v0.3.0): everything is a segment. Custom segments go in `segments`
+    # (optionally with split_by: <column> for one segment per value); `segment_sets` group
+    # segments into non-overlapping populations (first match wins; include_remainder optional).
+    # Power (SPEC §3.2): test-planning settings. The values a client actually tests with are recorded
+    # in their experiments input (pre-registration), not here.
     alpha: 0.05                       # two-sided
     power: 0.8
     holdout_grid: [10, 15, 20, 30]
@@ -63,19 +75,21 @@ vars:
     baseline_recent_anchors: 3              # "today's normal" = last N complete anchors
     baseline_instability_threshold: 0.25    # recent vs pooled relative gap that flags is_unstable
     max_plausible_relative_lift: 0.5        # is_testable: detectable lift must be <= +50% relative
-    # Serving (SPEC §3): headline choices for the srv tables
+    # Certified (DESIGN §6.2): headline choices for pocore__segment
     summary_holdout_pct: 15                 # must be in holdout_grid
     summary_default_window_days: 180        # primary window for custom segments without primary_window_days
-    # Donor journey (pode_srv__stage_transitions): stage at a month-end vs N months later.
-    transition_horizons_months: [3, 12, 24, 36]
     # Reconciliation sign-off (SPEC §6.4): optional client model/seed with one row per fiscal
     # year (giving_year, finance_revenue). Null = not supplied; the finance_match checks say so.
     finance_totals_model: null
     finance_tolerance_pct: 1                # engine vs finance gap allowed before 'warn'
     # Optional modules (SPEC §6.6): switch off a whole area when the client has no (or no
-    # trustworthy) data for it. Off = its models aren't built, so its srv tables don't exist.
+    # trustworthy) data for it. Off = its models aren't built, so its tables don't exist.
     modules:
-      sustainers: true      # pode_mtr__sustainer_month, pode_srv__sustainer_ltv (needs recurring gifts)
-    # Sustainer LTV (pode_srv__sustainer_ltv). Months counted from the first recurring payment (month 1).
+      sustainers: true      # sustainer month/cohort models and pocore__cohort__age(__breakdown) (needs recurring gifts)
+      pack: true            # pocore_export__pack_* tables for the Planning Pack (settings: the `pack` var)
+    # Sustainer cohorts (pocore__cohort__age). Months counted from the first recurring payment (month 1);
+    # the longest of these two lists sets how many months of life get a row.
     sustainer_survival_months: [2, 6, 12, 24]     # "still giving in month N" columns
     sustainer_ltv_horizons_months: [12, 24, 60]   # cumulative revenue per starter through month N
+    # Planning Pack (models/export): see macros/pocore_pack_settings.sql for every setting and its default.
+    pack: {}

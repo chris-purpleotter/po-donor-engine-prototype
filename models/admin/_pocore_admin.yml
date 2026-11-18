@@ -1,0 +1,38 @@
+version: 2
+
+# ADMIN (DESIGN_v0.2.0 §6.2): sign-off and health tables, for whoever signs off the data.
+# Exempt from the certified grain rules (they're for checking, not analysis); in the `pocore` schema.
+
+models:
+  - name: pocore_admin__reconciliation
+    description: >
+      The sign-off numbers. One row per month x gift_category x person_type x eligibility /
+      exclusion_reason x gift_type x refund flag. Every canonical gift is counted exactly once,
+      including gifts after as_of (is_after_as_of). gifts and net_amount add up across any
+      grouping: total by giving_year to compare with finance; by exclusion_reason to explain
+      the gap; recurring share by month = recurring non-refund gifts / all non-refund gifts.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['gift_month', 'gift_category', 'person_type', 'is_kpi_eligible', 'exclusion_reason', 'gift_type', 'is_refund', 'is_after_as_of']}
+    columns:
+      - name: giving_year
+        description: "Fiscal year of the gift (calendar year when fiscal_year_start_month = 1)."
+      - name: exclusion_reason
+        description: "Why the gift isn't KPI-eligible; null for eligible gifts."
+      - name: net_amount
+        description: "Sum of amounts (refunds are negative)."
+
+  - name: pocore_admin__health
+    description: >
+      One row per check (finance_match: one per year): sign-off and data-health checks that pass
+      the dbt tests but need a human look. status ok / warn / info; value vs threshold. Every row
+      carries the run context (as_of, fiscal_year_start_month, modules_on).
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['check_id', 'scope']}
+    columns:
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ok', 'warn', 'info']
