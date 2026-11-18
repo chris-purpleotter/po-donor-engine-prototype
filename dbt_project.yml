@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.3.1'
+version: '0.3.2'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -64,7 +64,8 @@ vars:
     # not a var: every window is a column name, and columns must be the same for every client.
     revenue_cap: 1000                 # per-donor cap on revenue_Nd (outliers swamp means)
     # Segments (DESIGN §6.2, v0.3.0): everything is a segment. Custom segments go in `segments`
-    # (optionally with split_by: <column> for one segment per value); `segment_sets` group
+    # (optionally with split_by: <column> for one segment per value); `standard_splits` breaks down the
+    # standard segments ({std_lapsed_v1: acquisition_channel, ...}); `segment_sets` group
     # segments into non-overlapping populations (first match wins; include_remainder optional).
     # Power (SPEC §3.2): test-planning settings. The values a client actually tests with are recorded
     # in their experiments input (pre-registration), not here.

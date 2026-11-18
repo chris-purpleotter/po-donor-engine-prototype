@@ -40,6 +40,9 @@ vars:
         label: "Has given"
         rule: "gift_count_lifetime > 0"
         split_by: acquisition_channel
+    # Break down a STANDARD segment without redefining it.
+    standard_splits:
+      std_lapsed_v1: region
     # A set: non-overlapping populations, first match wins, plus everyone else.
     segment_sets:
       - id: set_lapsed_value_v1
