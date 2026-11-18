@@ -3,7 +3,9 @@
   A plain time series: how big each segment was, how many people moved in and out that
   month, and how its people behaved afterwards (every KPI window as columns):
   gave_rate_<N>d (gave a qualifying gift), retained_rate_<N>d (still an active sustainer
-  N days later: the one that matters for sustainers; 90+ days only), revenue_per_person_<N>d.
+  N days later: the one that matters for sustainers; 90+ days only), revenue_per_person_<N>d
+  (average revenue per person in the window, each person capped at revenue_cap: for planning
+  maths) and revenue_per_person_uncapped_<N>d (actual dollars: for "how much did they give").
   Use is_complete_<N>d to drop months whose window hasn't finished yet.
   people_in_segment is a point-in-time count: don't add it across months.
   people_entering / people_leaving ARE monthly flows: adding them across months is fine.
@@ -35,6 +37,7 @@ with outcomes as (
         {%- endif %}
         cast(round(max(case when kpi_id = 'gave' and outcome_window_days = {{ w }} then value * n end)) as {{ dbt.type_int() }})     as gave_count_{{ w }}d,
         max(case when kpi_id = 'revenue_per_donor' and outcome_window_days = {{ w }} then value end) as revenue_per_person_{{ w }}d,
+        max(case when kpi_id = 'revenue_per_donor' and outcome_window_days = {{ w }} then value_uncapped end) as revenue_per_person_uncapped_{{ w }}d,
         max(case when kpi_id = 'gave' and outcome_window_days = {{ w }}
                  then case when is_window_complete then 1 else 0 end end) = 1               as is_complete_{{ w }}d
         {%- endfor %}
@@ -64,6 +67,7 @@ select
     {%- endif %}
     o.gave_count_{{ w }}d,
     o.revenue_per_person_{{ w }}d,
+    o.revenue_per_person_uncapped_{{ w }}d,
     o.is_complete_{{ w }}d
     {%- endfor %}
 from outcomes as o

@@ -49,6 +49,7 @@ settings as (
     where (setting = 'window_days' and value <> '90')
        or (setting = 'client_name' and value <> 'Integration test (who''s tested)')
        or (setting = 'as_of' and value <> '2026-09-30')
+       or (setting = 'revenue_cap' and value <> '1000')
 ),
 
 dims as (

@@ -59,6 +59,12 @@ cohort_check as (
 )
 {%- endif %}
 
+-- uncapped revenue can never be below capped revenue
+select 'uncapped < capped revenue' as check_name, cast(segment_id as {{ dbt.type_string() }}) as detail
+from {{ ref('pocore__segment__month') }}
+where revenue_per_person_uncapped_365d < revenue_per_person_365d - 0.001
+   or revenue_per_person_uncapped_90d  < revenue_per_person_90d  - 0.001
+union all
 select 'year vs person_year' as check_name, cast(fiscal_year as {{ dbt.type_string() }}) as detail from year_check
 union all select 'foundation gift vs input', null from gift_check
 union all select 'segment size vs membership', segment_id from segment_check
