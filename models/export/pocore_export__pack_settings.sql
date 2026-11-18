@@ -12,6 +12,7 @@
     ('window_days', s.window_days),
     ('holdout_pct', s.holdout_pct),
     ('min_group_size', s.min_group_size),
+    ('revenue_cap', var('revenue_cap')),
     ('engine_version', pocore_version()),
     ('as_of', var('as_of')),
 ] -%}
