@@ -35,3 +35,13 @@ vars:
       - id: cust_board_v1
         label: "Board members (who've served)"   # apostrophe on purpose: tests quoting (D10 trap 7)
         rule: "attr_is_board_member"
+      # split_by: also one segment per value (cust_givers_v1__web, cust_givers_v1__direct_mail ...)
+      - id: cust_givers_v1
+        label: "Has given"
+        rule: "gift_count_lifetime > 0"
+        split_by: acquisition_channel
+    # A set: non-overlapping populations, first match wins, plus everyone else.
+    segment_sets:
+      - id: set_lapsed_value_v1
+        segments: [cust_lapsed_100_v1, std_lapsed_v1]
+        include_remainder: true

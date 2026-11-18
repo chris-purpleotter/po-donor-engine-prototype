@@ -12,14 +12,20 @@
 with primary_kpis as (
     {% for s in pocore_all_segments() %}
     select '{{ s.id }}' as segment_id, '{{ s.primary_kpi }}' as primary_kpi
-    {% if not loop.last %}union all{% endif %}
+    union all
     {% endfor %}
+    -- a set's remainder has no parent segment: the default KPI
+    select '__remainder__', 'gave'
 )
 
 select
     p.segment_id,
     p.segment_label,
     p.segment_source,
+    p.parent_segment_id,
+    p.split_by,
+    p.split_value,
+    p.segment_set_id,
     p.latest_anchor_date                          as month_end_date,
     p.kpi_id                                      as primary_kpi,
     p.outcome_window_days,
@@ -38,7 +44,6 @@ select
     p.readout_date_if_launched_now                as readable_by
 from {{ ref('pocore_mtr__segment_power') }} as p
 inner join primary_kpis as k
-    on  k.segment_id  = p.segment_id
+    on  k.segment_id  = coalesce(p.parent_segment_id, '__remainder__')
     and k.primary_kpi = p.kpi_id
-where p.breakdown = 'all'
-  and p.baseline_lookback_months = {{ lookback }}
+where p.baseline_lookback_months = {{ lookback }}

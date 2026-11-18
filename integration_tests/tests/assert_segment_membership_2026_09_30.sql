@@ -7,6 +7,8 @@
 -- cust_lapsed_100_v1 (lapsed and lifetime >= $100):
 --   D01 $125 yes; D04 $40 no; D06 $0 (refunded) no; D10 $250 (capital gift excluded) yes.
 -- cust_board_v1 (attr_is_board_member, a client extra column): D10 only.
+-- cust_givers_v1 (gift_count_lifetime > 0): D01-D06, D10 (D06's gift was refunded but still counts
+--   as a gift made; D07 has none). Its split_by rows and set rows are checked in assert_splits_and_sets.
 
 with expected as (
     select 'std_lapsed_v1' as segment_id, 'D01' as person_id union all
@@ -19,13 +21,22 @@ with expected as (
     select 'std_prospect_v1',    'D07' union all
     select 'cust_lapsed_100_v1', 'D01' union all
     select 'cust_lapsed_100_v1', 'D10' union all
-    select 'cust_board_v1',      'D10'
+    select 'cust_board_v1',      'D10' union all
+    select 'cust_givers_v1',     'D01' union all
+    select 'cust_givers_v1',     'D02' union all
+    select 'cust_givers_v1',     'D03' union all
+    select 'cust_givers_v1',     'D04' union all
+    select 'cust_givers_v1',     'D05' union all
+    select 'cust_givers_v1',     'D06' union all
+    select 'cust_givers_v1',     'D10'
 ),
 
 actual as (
     select segment_id, person_id
     from {{ ref('pocore_seg__membership') }}
     where snapshot_date = cast('2026-09-30' as date)
+      and split_by is null          -- configured segments only (splits and sets: their own test)
+      and segment_set_id is null
 )
 
 select 'missing' as problem, e.segment_id, e.person_id

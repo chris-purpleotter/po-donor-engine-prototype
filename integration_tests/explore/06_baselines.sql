@@ -6,7 +6,7 @@
 -- query: the prospect segment's 90-day "gave" rate, month by month
 select segment_id, anchor_date, n, value as gave_rate_90d, is_window_complete
 from main_pocore_internal.pocore_mtr__segment_baselines
-where segment_id = 'std_prospect_v1' and breakdown = 'all' and kpi_id = 'gave' and outcome_window_days = 90
+where segment_id = 'std_prospect_v1' and kpi_id = 'gave' and outcome_window_days = 90
 order by anchor_date desc
 limit 8;
 

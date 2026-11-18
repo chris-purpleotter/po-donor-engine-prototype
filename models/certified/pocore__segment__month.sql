@@ -21,6 +21,10 @@ with outcomes as (
         segment_id,
         segment_label,
         segment_source,
+        parent_segment_id,
+        split_by,
+        split_value,
+        segment_set_id,
         anchor_date                                                                       as snapshot_date,
         max(n)                                                                            as people_in_segment
         {%- for w in windows %},
@@ -35,8 +39,8 @@ with outcomes as (
                  then case when is_window_complete then 1 else 0 end end) = 1               as is_complete_{{ w }}d
         {%- endfor %}
     from {{ ref('pocore_mtr__segment_baselines') }}
-    where breakdown = 'all'
-    group by segment_id, segment_label, segment_source, anchor_date
+    group by segment_id, segment_label, segment_source, parent_segment_id, split_by, split_value,
+             segment_set_id, anchor_date
 
 )
 
@@ -44,6 +48,10 @@ select
     o.segment_id,
     o.segment_label,
     o.segment_source,
+    o.parent_segment_id,
+    o.split_by,
+    o.split_value,
+    o.segment_set_id,
     o.snapshot_date                                                                   as month_end_date,
     o.people_in_segment,
     f.donors_entering                                                                 as people_entering,

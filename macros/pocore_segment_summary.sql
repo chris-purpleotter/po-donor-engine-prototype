@@ -1,10 +1,11 @@
 {#
-  Shared SQL for pocore__segment (whole segments) and pocore__segment__breakdown
-  (segment x breakdown value), so the two can't drift apart.
+  The SQL behind pocore__segment: one row per segment (configured, split and set segments
+  alike), so every population gets the same headline numbers.
 
-  Headline numbers per segment (or breakdown value), today:
+  Headline numbers per segment, today:
     - each segment's PRIMARY window and PRIMARY KPI (pocore_standard_segments / custom
-      primary_window_days, primary_kpi): 'gave' for most, 'retained' for sustainers
+      primary_window_days, primary_kpi): 'gave' for most, 'retained' for sustainers.
+      Split and set segments use their parent segment's; a set's remainder uses the defaults.
     - first baseline lookback, the summary_holdout_pct holdout
 
   Value (observational, approximate: sizing figures, not forecasts):
@@ -18,7 +19,7 @@
                               NOT a ranking of where the money is.
 #}
 
-{% macro pocore_segment_summary(by_breakdown) %}
+{% macro pocore_segment_summary() %}
 
 {%- set lookback = var('baseline_lookback_months')[0] -%}
 {%- set holdout = var('summary_holdout_pct') -%}
@@ -35,13 +36,13 @@
     {%- endif -%}
 {%- endfor -%}
 
-{%- set breakdown_filter = "breakdown != 'all'" if by_breakdown else "breakdown = 'all'" -%}
-
 with primary_choices as (
     {% for s in segments %}
     select '{{ s.id }}' as segment_id, {{ s.primary_window_days }} as primary_window_days, '{{ s.primary_kpi }}' as primary_kpi
-    {% if not loop.last %}union all{% endif %}
+    union all
     {% endfor %}
+    -- a set's remainder ("everyone else") has no parent segment: default window and KPI
+    select '__remainder__', {{ var('summary_default_window_days') }}, 'gave'
 ),
 
 power as (
@@ -50,7 +51,6 @@ power as (
     from {{ ref('pocore_mtr__segment_power') }}
     where baseline_lookback_months = {{ lookback }}
       and holdout_pct = {{ holdout }}
-      and {{ breakdown_filter }}
 
 ),
 
@@ -58,13 +58,13 @@ headline as (
     select p.*
     from power as p
     inner join primary_choices as pc
-        on  pc.segment_id          = p.segment_id
+        on  pc.segment_id          = coalesce(p.parent_segment_id, '__remainder__')
         and pc.primary_window_days = p.outcome_window_days
         and pc.primary_kpi         = p.kpi_id
 ),
 
 revenue as (
-    select segment_id, breakdown, breakdown_value, outcome_window_days, baseline_recent as revenue_recent
+    select segment_id, outcome_window_days, baseline_recent as revenue_recent
     from power
     where kpi_id = 'revenue_per_donor'
 )
@@ -73,10 +73,10 @@ select
     h.segment_id,
     h.segment_label,
     h.segment_source,
-    {%- if by_breakdown %}
-    h.breakdown                                         as breakdown_by,
-    h.breakdown_value,
-    {%- endif %}
+    h.parent_segment_id,
+    h.split_by,
+    h.split_value,
+    h.segment_set_id,
     h.latest_anchor_date                                as month_end_date,
     h.n_eligible                                        as people_in_segment,
     h.kpi_id                                            as primary_kpi,
@@ -99,8 +99,6 @@ select
 from headline as h
 left join revenue as r
     on  r.segment_id          = h.segment_id
-    and r.breakdown           = h.breakdown
-    and r.breakdown_value     = h.breakdown_value
     and r.outcome_window_days = h.outcome_window_days
 
 {% endmacro %}

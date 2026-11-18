@@ -2,7 +2,7 @@
   pocore_mtr__segment_baselines — how each segment has historically performed (SPEC §3.1).
   INTERNAL metrics layer: the full long table that the srv models read from. Not exposed —
   it mixes whole-segment and slice rows, so naive aggregation double-counts.
-  One row per segment_id x breakdown x breakdown_value x kpi_id x outcome_window_days x anchor_date.
+  One row per segment_id x kpi_id x outcome_window_days x anchor_date.
 
   For every segment at every anchor date: who was in it and what they did afterwards,
   aggregated. Reads FOUNDATION (pocore_foundation__person__segment__month and
@@ -15,11 +15,8 @@
   succeeded minus among those who didn't, over the same window. What one extra success has
   been worth, observationally; used for the srv opportunity estimate. Null for mean KPIs.
 
-  Breakdowns (var `baseline_breakdowns`): each listed snapshot column also gets one row per
-  value, e.g. breakdown = 'acquisition_channel', breakdown_value = 'Face to Face'.
-  breakdown = 'all' is the whole segment. Missing values show as 'unknown'.
-  Breakdown columns are current values: allowed only for attributes that don't change
-  because of giving (D7).
+  Splits and sets are just more segments (see pocore_seg__membership): the descriptive
+  columns parent_segment_id / split_by / split_value / segment_set_id are carried through.
 
   Rows whose window hasn't fully elapsed are kept but flagged (is_window_complete = false);
   they are partial and must never be pooled or reported as final.
@@ -27,19 +24,17 @@
 
 {%- set windows = pocore_kpi_windows() -%}
 {%- set retained_windows = pocore_kpi_windows('retained') -%}
-{%- set breakdowns = var('baseline_breakdowns') -%}
+{%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
 {%- set float_type = dbt.type_float() -%}
 
 with joined as (
 
-    -- Built from FOUNDATION: who was in each segment at each month-end, joined to what was
-    -- true about them then (breakdown columns) and what they did afterwards (outcomes).
+    -- Built from FOUNDATION: who was in each segment at each month-end, joined to what they
+    -- did afterwards (outcomes).
     select
         m.segment_id,
-        m.segment_label,
-        m.segment_source,
-        {%- for b in breakdowns %}
-        coalesce(cast(p.{{ b }} as {{ dbt.type_string() }}), 'unknown') as bd_{{ b }},
+        {%- for c in desc_cols %}
+        m.{{ c }},
         {%- endfor %}
         p.person_id,
         p.month_end_date as anchor_date,
@@ -59,16 +54,13 @@ with joined as (
 
 ),
 
--- One aggregation for the whole segment ('all') plus one per breakdown column.
 aggregated as (
-    {%- for b in ['all'] + breakdowns %}
 
     select
         segment_id,
-        segment_label,
-        segment_source,
-        '{{ b }}'                                                as breakdown,
-        {% if b == 'all' %}'all'{% else %}bd_{{ b }}{% endif %} as breakdown_value,
+        {%- for c in desc_cols %}
+        {{ c }},
+        {%- endfor %}
         anchor_date,
         count(*) as n,
         {%- for w in windows %}
@@ -85,13 +77,7 @@ aggregated as (
         {%- if not loop.last %},{% endif %}
         {%- endfor %}
     from joined
-    -- (BigQuery rejects GROUP BY on a literal, so 'all' adds nothing to the grouping.)
-    group by segment_id, segment_label, segment_source,
-             {% if b != 'all' %}bd_{{ b }}, {% endif %}anchor_date
-    {% if not loop.last %}
-    union all
-    {%- endif %}
-    {%- endfor %}
+    group by segment_id, {{ desc_cols | join(', ') }}, anchor_date
 
 )
 
@@ -99,7 +85,7 @@ aggregated as (
 {% for w in windows %}
 {%- for k in rate_kpis if k == 'gave' or w in retained_windows %}
 select
-    segment_id, segment_label, segment_source, breakdown, breakdown_value,
+    segment_id, {{ desc_cols | join(', ') }},
     '{{ k }}'                                                       as kpi_id,
     'rate'                                                          as metric_type,
     {{ w }}                                                         as outcome_window_days,
@@ -116,7 +102,7 @@ from aggregated
 union all
 {% endfor %}
 select
-    segment_id, segment_label, segment_source, breakdown, breakdown_value,
+    segment_id, {{ desc_cols | join(', ') }},
     'revenue_per_donor'                                             as kpi_id,
     'mean'                                                          as metric_type,
     {{ w }}                                                         as outcome_window_days,

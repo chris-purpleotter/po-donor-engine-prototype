@@ -1,5 +1,5 @@
 packages:
   # Install the engine from the parent folder. A real client would use:
   #   - git: "https://github.com/chris-purpleotter/po-donor-engine-prototype.git"
-  #     revision: v0.2.0-prototype
+  #     revision: v0.3.0-prototype
   - local: ../

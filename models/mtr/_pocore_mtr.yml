@@ -7,19 +7,15 @@ version: 2
 models:
   - name: pocore_mtr__segment_baselines
     description: >
-      One row per segment x breakdown x breakdown_value x KPI x window x anchor date: segment
-      size (n) and the rate (gave) or capped mean (revenue_per_donor) for that anchor.
-      breakdown = 'all' is the whole segment. Rows with is_window_complete = false are partial.
+      One row per segment x KPI x window x anchor date: segment size (n) and the rate (gave,
+      retained) or capped mean (revenue_per_donor) for that anchor. Split and set segments are
+      ordinary segments here. Rows with is_window_complete = false are partial.
     data_tests:
       - pocore_unique_combination:
           arguments:
-            columns: ['segment_id', 'breakdown', 'breakdown_value', 'kpi_id', 'outcome_window_days', 'anchor_date']
+            columns: ['segment_id', 'kpi_id', 'outcome_window_days', 'anchor_date']
     columns:
       - name: segment_id
-        data_tests: [not_null]
-      - name: breakdown
-        data_tests: [not_null]
-      - name: breakdown_value
         data_tests: [not_null]
       - name: kpi_id
         data_tests:
@@ -72,13 +68,12 @@ models:
 
   - name: pocore_mtr__segment_power
     description: >
-      One row per segment x breakdown x breakdown_value x KPI x window x baseline lookback x
-      holdout %: pooled and recent baselines, stability, detectable lift (pooled and vs recent),
+      One row per segment x KPI x window x baseline lookback x holdout %: pooled and recent baselines, stability, detectable lift (pooled and vs recent),
       is_testable, readable-by date.
     data_tests:
       - pocore_unique_combination:
           arguments:
-            columns: ['segment_id', 'breakdown', 'breakdown_value', 'kpi_id', 'outcome_window_days', 'baseline_lookback_months', 'holdout_pct']
+            columns: ['segment_id', 'kpi_id', 'outcome_window_days', 'baseline_lookback_months', 'holdout_pct']
     columns:
       - name: is_unstable
         data_tests: [not_null]

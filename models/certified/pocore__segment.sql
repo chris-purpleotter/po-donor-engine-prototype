@@ -5,4 +5,4 @@
   Built from foundation (pocore_foundation__person__month / __person__segment__month) via the
   engine's statistics (pocore_mtr__segment_power).
 #}
-{{ pocore_segment_summary(by_breakdown=false) }}
+{{ pocore_segment_summary() }}

@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.2.0'
+version: '0.3.0'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -14,6 +14,7 @@ require-dbt-version: [">=1.11.0", "<1.12.0"]
 
 model-paths: ["models"]
 macro-paths: ["macros"]
+analysis-paths: ["analyses"]   # examples to copy (compiled, never built): e.g. the segment explorer
 seed-paths: ["seeds"]
 test-paths: ["tests"]
 
@@ -47,7 +48,7 @@ vars:
     people_model: donors
     gifts_model: gifts
     # Optional extra columns to bring through from each conform model (SPEC §6.5),
-    # exposed as attr_<name>. Donor attributes become snapshot columns (segments, breakdowns).
+    # exposed as attr_<name>. Person attributes become snapshot columns (usable in segment rules and split_by).
     people_extra_columns: []
     gifts_extra_columns: []
     # `as_of` deliberately has NO default: it must come from the client (env var PO_AS_OF). See D3.
@@ -59,9 +60,9 @@ vars:
     # KPI windows are FIXED by the engine (macro pocore_kpi_windows: 30/90/180/365, retained 90/180/365),
     # not a var: every window is a column name, and columns must be the same for every client.
     revenue_cap: 1000                 # per-donor cap on revenue_Nd (outliers swamp means)
-    # Baselines (SPEC §3.1): snapshot columns to split each segment by. Current-value
-    # attributes only (D7). Every client has these three in the contract.
-    baseline_breakdowns: [acquisition_channel, region, first_gift_band]
+    # Segments (DESIGN §6.2, v0.3.0): everything is a segment. Custom segments go in `segments`
+    # (optionally with split_by: <column> for one segment per value); `segment_sets` group
+    # segments into non-overlapping populations (first match wins; include_remainder optional).
     # Power (SPEC §3.2): test-planning settings. The values a client actually tests with are recorded
     # in their experiments input (pre-registration), not here.
     alpha: 0.05                       # two-sided
@@ -71,7 +72,7 @@ vars:
     baseline_recent_anchors: 3              # "today's normal" = last N complete anchors
     baseline_instability_threshold: 0.25    # recent vs pooled relative gap that flags is_unstable
     max_plausible_relative_lift: 0.5        # is_testable: detectable lift must be <= +50% relative
-    # Certified (DESIGN §6.2): headline choices for pocore__segment and pocore__segment__breakdown
+    # Certified (DESIGN §6.2): headline choices for pocore__segment
     summary_holdout_pct: 15                 # must be in holdout_grid
     summary_default_window_days: 180        # primary window for custom segments without primary_window_days
     # Reconciliation sign-off (SPEC §6.4): optional client model/seed with one row per fiscal

@@ -1,5 +1,5 @@
 {#
-  pocore__person__segment — ONE ROW PER PERSON x SEGMENT, as of the latest month-end.
+  pocore_foundation__person__segment — ONE ROW PER PERSON x SEGMENT, as of the latest month-end.
   The roster: "who is in this segment right now?", the list someone acts on (mailing, calls,
   CRM tag). Counting rows for one segment = counting its people. A person can be in several
   segments (custom segments may overlap), so filter to one segment before counting.
@@ -20,6 +20,10 @@ select
     m.segment_id,
     m.segment_label,
     m.segment_source,
+    m.parent_segment_id,
+    m.split_by,
+    m.split_value,
+    m.segment_set_id,
     m.month_end_date,
     p.lifecycle_stage,
     p.acquisition_channel,

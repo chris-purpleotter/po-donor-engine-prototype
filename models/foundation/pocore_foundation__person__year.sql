@@ -1,5 +1,5 @@
 {#
-  pocore__person__year — ONE ROW PER PERSON x FISCAL YEAR, from the fiscal year the person
+  pocore_foundation__person__year — ONE ROW PER PERSON x FISCAL YEAR, from the fiscal year the person
   first appears (created or first gift, whichever is earlier) to the current fiscal year.
   Individuals only (the same population as pocore__year and the segments); deceased people
   are kept, because they gave in those years.

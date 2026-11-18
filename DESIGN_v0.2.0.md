@@ -1,4 +1,4 @@
-# v0.2.0 design: `po_core`, foundation and certified
+# v0.2.0 / v0.3.0 design: `po_core`, foundation and certified
 
 **Status:** draft for review (rewritten 2026-11-18). Nothing here is built yet. Once it is accepted, it replaces the matching parts of `SPEC.md`: §3 (serving outputs), D13 (naming), and the layer table.
 
@@ -331,6 +331,37 @@ The engine doesn't run tests, people do. So the engine never creates or stores w
 - **Checks, because the input can't be trusted blindly:** group sizes vs intended holdout, balance at launch on giving history (`foundation__person__month` as of `assigned_date`), one active experiment per person, and later contamination (holdout contacted?). Results carry a "trustworthy?" flag.
 - **Test planning is unchanged** (pure analysis, used before a test is set up). Optional helper: a deterministic hash-based suggested split clients can export.
 - Nothing in v0.2.0 depended on the old write-once design, apart from comments that have been removed.
+
+---
+
+## v0.3.0: populations, configured; exploration on foundation (2026-11-18)
+
+**Boundaries (decided):**
+- **dbt first.** The engine produces **foundation** (tested facts, for all exploration) and **certified population summaries**: the standard metric set (size, same-season rate, value per point, detectable lift, monthly trend, test options) for every configured population. Fundraisers think in populations of people; certified answers "how is each population doing, and is it worth testing?".
+- **Configuration is done by us** (SQL rules in config; no friendly syntax layer, no separate segments file yet).
+- **Exploration happens on foundation:** example SQL (`analyses/pocore_segment_explorer.sql`) and one starter Lightdash explore in the demo. No viewer product yet; revisit when a client says what their people will use.
+
+**Changes:**
+1. **Everything is a segment.** `__segment__breakdown` and the `baseline_breakdowns` var are removed (setting the var now fails with a pointer to `split_by`). Breakdowns were only a shortcut for writing many segments, and having two concepts was confusing.
+2. **`split_by` on a segment** also creates one segment per value of a low-cardinality column (`<id>__<value>`, label "Lapsed — Web"). Split rows carry `parent_segment_id`, `split_by`, `split_value`, and add up to the parent.
+3. **Segment sets** (`segment_sets` var): listed segments in priority order, each person in the FIRST one they match (`<set>__<segment>`, labels numbered "1. …", "2. …"), plus optional `include_remainder` ("Everyone else"). A set's populations don't overlap and add up to the whole population. Set rows carry `segment_set_id` and use their parent's KPI and window; the remainder uses the defaults.
+4. **`pocore__person__year` → `pocore_foundation__person__year`, `pocore__person__segment` → `pocore_foundation__person__segment`.** They are person-level rows (exploration material), not population summaries.
+5. **Fix: segments with no completed outcome window no longer vanish** from the certified tables (a new custom segment, a new split value). They appear with their size and empty rates.
+
+**Certified after v0.3.0:** `pocore__segment`, `pocore__segment__month`, `pocore__segment__test_option`, `pocore__year`, `pocore__cohort__year`, `pocore__cohort__age` (+ `__age__breakdown`, the sustainer per-channel cut: a cohort split, kept as is for now).
+**Foundation after v0.3.0:** `__person`, `__gift`, `__person__month`, `__person__segment__month`, `__person__segment`, `__person__year`.
+
+```yaml
+segments:
+  - id: cust_lapsed_v1
+    label: "Lapsed"
+    rule: "lifecycle_stage = 'lapsed'"
+    split_by: acquisition_channel        # optional
+segment_sets:
+  - id: set_lapsed_value_v1              # must look like set_<name>_v<N>
+    segments: [cust_lapsed_500_v1, cust_lapsed_100_v1, std_lapsed_v1]
+    include_remainder: true              # optional; remainder_label optional
+```
 
 ---
 

@@ -16,12 +16,23 @@ models:
       rate_typical = pooled over the last 12 months, rate_same_season = the same months last year);
       whether a test is worth running (detectable_lift, is_testable, readable_by at the default
       holdout); and what improvement is worth (value_per_point: each +1 point on the KPI;
-      value_of_detectable_lift: the smallest provable lift). Segments can overlap (custom ones
-      especially): don't add people_in_segment across segments.
+      value_of_detectable_lift: the smallest provable lift). Includes split segments (split_by /
+      split_value: one per value of an attribute, e.g. "Lapsed — Web") and set segments
+      (segment_set_id: non-overlapping populations). Segments overlap in general (a split overlaps
+      its parent; custom ones overlap standard ones): only within ONE segment_set_id, or ONE
+      parent's split, do people_in_segment add up.
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['segment_id']}
     columns: &segment_columns
+      - name: parent_segment_id
+        description: "The configured segment this row comes from (its KPI and window are used). Equals segment_id for configured segments; null for a set's remainder."
+      - name: split_by
+        description: "For split segments: the attribute split on (e.g. acquisition_channel). Null otherwise."
+      - name: split_value
+        description: "For split segments: the attribute's value. Rows with the same parent_segment_id and split_by add up to the parent."
+      - name: segment_set_id
+        description: "For set segments: the set. A set's segments don't overlap (each person is in the first one they match), so their people add up."
       - name: month_end_date
         description: "The month-end these numbers describe (the latest snapshot)."
       - name: people_in_segment
@@ -55,17 +66,6 @@ models:
       - name: value_of_detectable_lift
         description: "Value of the smallest provable lift (extra_donors_at_detectable_lift x revenue_per_extra_donor). A floor for test planning; shrinks with bigger holdouts, so don't rank segments by it."
 
-  - name: pocore__segment__breakdown
-    description: >
-      One row per segment x breakdown value, as of the latest month-end: the same columns as
-      pocore__segment, split by a person attribute (breakdown_by: acquisition_channel, region,
-      first_gift_band, attr_*; breakdown_value: the value). Filter to ONE breakdown_by: within
-      it the values add up to the segment; across breakdown_by values they overlap.
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['segment_id', 'breakdown_by', 'breakdown_value']}
-    columns: *segment_columns
-
   - name: pocore__segment__month
     description: >
       One row per segment x month-end (whole segments). people_in_segment is the count at that
@@ -92,37 +92,6 @@ models:
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['segment_id', 'outcome_window_days', 'holdout_pct']}
-
-  - name: pocore__person__segment
-    description: >
-      One row per person x segment, as of the latest month-end: who is in each segment right now
-      (the roster), with the attributes needed to act on the list. Counting rows for one segment =
-      its people. A person can appear in several segments, so filter to one segment first.
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['person_id', 'segment_id']}
-
-  - name: pocore__person__year
-    description: >
-      One row per person x fiscal year (individuals; from the year they first appear to now). That
-      year's giving (gave, gifts, amount_given: summable), movement_status (New / Second year /
-      Continuing / Reactivated / Reactivated - second year / Lost / Not giving / Never given), and
-      the journey: stage at the year's last month-end and 1, 2, 3 years before. For a Sankey,
-      filter ONE fiscal_year and count people by stage_1y_ago -> stage.
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['person_id', 'fiscal_year']}
-    columns:
-      - name: movement_status
-        data_tests:
-          - not_null
-          - accepted_values:
-              arguments:
-                values: ['New', 'Second year', 'Continuing', 'Reactivated', 'Reactivated - second year', 'Lost', 'Not giving', 'Never given']
-      - name: stage_date
-        description: "The month-end the stage describes: the fiscal year's last month-end (the latest month-end for the current year)."
-      - name: stage_1y_ago
-        description: "Lifecycle stage 12 months before stage_date. Null before the snapshot history starts or before the person existed."
 
   - name: pocore__year
     description: >

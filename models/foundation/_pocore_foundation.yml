@@ -79,3 +79,34 @@ models:
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['person_id', 'segment_id', 'month_end_date']}
+
+  - name: pocore_foundation__person__segment
+    description: >
+      One row per person x segment, as of the latest month-end: who is in each segment right now
+      (the roster), with the attributes needed to act on the list. Counting rows for one segment =
+      its people. A person can appear in several segments, so filter to one segment first.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'segment_id']}
+
+  - name: pocore_foundation__person__year
+    description: >
+      One row per person x fiscal year (individuals; from the year they first appear to now). That
+      year's giving (gave, gifts, amount_given: summable), movement_status (New / Second year /
+      Continuing / Reactivated / Reactivated - second year / Lost / Not giving / Never given), and
+      the journey: stage at the year's last month-end and 1, 2, 3 years before. For a Sankey,
+      filter ONE fiscal_year and count people by stage_1y_ago -> stage.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'fiscal_year']}
+    columns:
+      - name: movement_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['New', 'Second year', 'Continuing', 'Reactivated', 'Reactivated - second year', 'Lost', 'Not giving', 'Never given']
+      - name: stage_date
+        description: "The month-end the stage describes: the fiscal year's last month-end (the latest month-end for the current year)."
+      - name: stage_1y_ago
+        description: "Lifecycle stage 12 months before stage_date. Null before the snapshot history starts or before the person existed."

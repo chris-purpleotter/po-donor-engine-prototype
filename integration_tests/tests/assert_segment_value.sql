@@ -2,12 +2,12 @@
 --   value_per_point          = people_in_segment x 0.01 x revenue_per_extra_donor
 --   value_of_detectable_lift = extra_donors_at_detectable_lift x revenue_per_extra_donor
 --   extra_donors_at_detectable_lift = people_in_segment x detectable_lift
--- Checked on both segment tables (whole segments and breakdowns).
+-- Checked on every segment row (configured, split and set segments).
 -- Also: every row is as of the latest month-end (2026-09-30), and a segment with nobody in
 -- it now shows 0 donors, not a stale count (std_new_v1 is empty at 2026-09-30; it last had
 -- a member at 2025-11-30).
 
-{%- for m in ['pocore__segment', 'pocore__segment__breakdown'] %}
+{%- for m in ['pocore__segment'] %}
 select '{{ m }}' as model, segment_id
 from {{ ref(m) }}
 where abs(value_per_point - people_in_segment * 0.01 * revenue_per_extra_donor) > 0.001

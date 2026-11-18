@@ -1,10 +1,9 @@
 {#
-  pocore_mtr__segment_power — what an experiment on each segment (or slice) could detect
-  if launched now (SPEC §3.2). INTERNAL metrics layer: the full grid the srv models read from.
-  One row per segment_id x breakdown x breakdown_value x kpi_id x outcome_window_days
-  x baseline_lookback_months x holdout_pct.
-  breakdown = 'all' is the whole segment; other rows are slices (e.g. face-to-face only),
-  so "is this slice big enough to test on its own?" is answered too.
+  pocore_mtr__segment_power — what an experiment on each segment could detect if launched now
+  (SPEC §3.2). INTERNAL statistics: the full grid the certified tables read from.
+  One row per segment_id x kpi_id x outcome_window_days x baseline_lookback_months x holdout_pct.
+  Split and set segments are ordinary segments here, so "is this split big enough to test on
+  its own?" is answered too.
 
     n_eligible         size at the latest anchor (the as_of month-end)
     baseline_value     pooled over the most recent N COMPLETE anchors: sum(value*n) / sum(n)
@@ -37,7 +36,8 @@
 {%- set float_type = dbt.type_float() -%}
 {%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 {#- The keys that identify one baseline series (a segment, or a slice of one). -#}
-{%- set keys = ['segment_id', 'breakdown', 'breakdown_value', 'kpi_id', 'outcome_window_days'] -%}
+{%- set keys = ['segment_id', 'kpi_id', 'outcome_window_days'] -%}
+{%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
 
 with baselines as (
 
@@ -55,8 +55,9 @@ latest as (
 series as (
     select
         {{ keys | join(', ') }},
-        max(segment_label)  as segment_label,
-        max(segment_source) as segment_source,
+        {%- for c in desc_cols %}
+        max({{ c }})        as {{ c }},
+        {%- endfor %}
         max(metric_type)    as metric_type
     from baselines
     group by {{ keys | join(', ') }}
@@ -137,6 +138,14 @@ recent as (
 
 ),
 
+-- Every lookback for every series, so a segment with NO complete history yet (a new custom
+-- segment, a new split value) still gets rows: its size, with empty rates, instead of vanishing.
+lookback_list as (
+    {% for lb in lookbacks %}
+    select {{ lb }} as baseline_lookback_months {% if not loop.last %}union all{% endif %}
+    {% endfor %}
+),
+
 holdouts as (
     {% for h in holdouts %}
     select {{ h }} as holdout_pct {% if not loop.last %}union all{% endif %}
@@ -146,14 +155,14 @@ holdouts as (
 sized as (
 
     select
-        e.segment_id, e.segment_label, e.segment_source, e.breakdown, e.breakdown_value,
+        e.segment_id, {% for c in desc_cols %}e.{{ c }}, {% endfor %}
         e.kpi_id, e.metric_type, e.outcome_window_days,
-        p.baseline_lookback_months,
+        lk.baseline_lookback_months,
         h.holdout_pct,
         e.latest_anchor_date,
         e.n_eligible,
-        p.anchors_used,
-        (p.anchors_used < p.baseline_lookback_months)                       as is_short_history,
+        coalesce(p.anchors_used, 0)                                         as anchors_used,
+        (coalesce(p.anchors_used, 0) < lk.baseline_lookback_months)         as is_short_history,
         p.baseline_value,
         r.baseline_recent,
         r.revenue_gap_recent,
@@ -178,8 +187,9 @@ sized as (
         cast(e.n_eligible as {{ float_type }}) * h.holdout_pct / 100        as n_holdout,
         cast(e.n_eligible as {{ float_type }}) * (100 - h.holdout_pct) / 100 as n_treatment
     from eligible as e
-    inner join pooled as p
-        on {% for k in keys %}p.{{ k }} = e.{{ k }}{% if not loop.last %} and {% endif %}{% endfor %}
+    cross join lookback_list as lk
+    left join pooled as p
+        on {% for k in keys %}p.{{ k }} = e.{{ k }} and {% endfor %}p.baseline_lookback_months = lk.baseline_lookback_months
     left join recent as r
         on {% for k in keys %}r.{{ k }} = e.{{ k }}{% if not loop.last %} and {% endif %}{% endfor %}
     left join seasonal as ss
@@ -203,7 +213,7 @@ with_mde as (
 )
 
 select
-    segment_id, segment_label, segment_source, breakdown, breakdown_value,
+    segment_id, {{ desc_cols | join(', ') }},
     kpi_id, metric_type, outcome_window_days,
     baseline_lookback_months, holdout_pct,
     latest_anchor_date, n_eligible, n_treatment, n_holdout,

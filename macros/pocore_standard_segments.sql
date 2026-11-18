@@ -38,7 +38,8 @@
             'label': s.label,
             'rule': s.rule,
             'primary_window_days': s.get('primary_window_days', var('summary_default_window_days')),
-            'primary_kpi': s.get('primary_kpi', 'gave')
+            'primary_kpi': s.get('primary_kpi', 'gave'),
+            'split_by': s.get('split_by')
         }) -%}
         {%- if out[-1].primary_kpi not in ['gave', 'retained'] -%}
             {{ exceptions.raise_compiler_error("po_core: segment " ~ s.id ~ " primary_kpi must be 'gave' or 'retained', got '" ~ out[-1].primary_kpi ~ "'") }}
