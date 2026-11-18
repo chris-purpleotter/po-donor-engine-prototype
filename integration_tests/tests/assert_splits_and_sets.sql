@@ -65,6 +65,20 @@ certified_split_sums as (
     where parent.n is distinct from splits.n
 ),
 
+-- standard_splits: std_lapsed_v1 by region at 2026-09-30: D01, D04, D06, D10 are all ON -> one
+-- split segment std_lapsed_v1__on with all 4, labelled "Lapsed donors (13-24 months) — ON".
+standard_split as (
+    select 'std_lapsed_v1__on' as segment_id, 'standard split' as problem
+    from (select count(*) as n from latest where segment_id = 'std_lapsed_v1__on') as a
+    where a.n <> 4
+    union all
+    select s.segment_id, 'standard split columns'
+    from {{ ref('pocore__segment') }} as s
+    where s.segment_id = 'std_lapsed_v1__on'
+      and (s.parent_segment_id is distinct from 'std_lapsed_v1' or s.split_by is distinct from 'region'
+           or s.segment_label is distinct from 'Lapsed donors (13-24 months) — ON' or s.outcome_window_days is distinct from 180)
+),
+
 summary_present as (
     select e.segment_id, 'missing from pocore__segment' as problem
     from expected_set as e
@@ -78,3 +92,4 @@ union all select * from split_sums
 union all select * from summary_rows
 union all select * from summary_present
 union all select * from certified_split_sums
+union all select * from standard_split
