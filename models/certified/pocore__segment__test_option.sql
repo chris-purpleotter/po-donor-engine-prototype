@@ -4,7 +4,7 @@
   "If we tested something on this segment now, measured over this window, holding out
   this share: what could we detect, and when would we know?" Each row is one option to
   compare; nothing here should be added up.
-  Each segment is measured on its primary KPI ('gave', or 'retained' for sustainers).
+  Each segment is measured on its primary KPI (one of pocore_measures(); 'gave' unless set).
 #}
 
 {%- set lookback = var('baseline_lookback_months')[0] -%}

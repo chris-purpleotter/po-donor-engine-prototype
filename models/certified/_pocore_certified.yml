@@ -40,7 +40,7 @@ models:
       - name: outcome_window_days
         description: "The segment's primary window (new 90, lapsed 180, others 365)."
       - name: primary_kpi
-        description: "What success means for this segment: 'gave' (a qualifying gift within the window) or 'retained' (still an active sustainer at the end of it; used for sustainers)."
+        description: "What success means for this segment, one of the engine's measures (macro pocore_measures): 'gave' (a qualifying gift within the window), 'started_monthly' (signed up to a new monthly plan within it) or 'retained' (still an active sustainer at the end of it; used for sustainers)."
       - name: rate_recent
         description: "Share of the segment achieving the primary KPI within the window, over the most recent complete months: today's normal."
       - name: rate_typical

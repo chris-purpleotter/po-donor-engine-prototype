@@ -1,5 +1,5 @@
 {#
-  Settings for the Planning Pack export (models/export), from the client's `pack` var, with
+  Settings for Supporter Insights export (models/export), from the client's `pack` var, with
   defaults for anything not set. Everything client-specific about the pack lives here, in the
   client's dbt project, so the pack tool itself stays client-agnostic.
 
@@ -11,7 +11,7 @@
           holdout_pct: 15           # for the detectable-lift estimate
           min_group_size: 5         # the pack hides groups smaller than this
           dimensions:               # the "Build a population" dropdowns
-            - {name: lifecycle_stage, label: "Lifecycle stage"}
+            - {name: lifecycle_stage, label: "Lifecycle stage"}   # bands added automatically (engine stage labels)
             - name: lifetime_giving
               label: "Lifetime giving"
               bands:                # SQL over pocore_foundation__person__month columns; the
@@ -46,6 +46,26 @@
     {%- do s.update(defaults) -%}
     {%- do s.update(var('pack', {}) or {}) -%}
 
+    {#- lifecycle_stage with no bands of its own gets the engine's stage labels as bands, so the
+        dropdown reads "Lapsed (13-24 months)" in lifecycle order, and a picked stage still
+        becomes the rule lifecycle_stage = 'lapsed'. -#}
+    {%- set dims = [] -%}
+    {%- for d in s.dimensions -%}
+        {%- if d.get('name') == 'lifecycle_stage' and not d.get('bands') -%}
+            {%- set stage_bands = [] -%}
+            {%- for st in pocore_lifecycle_stages() -%}
+                {%- do stage_bands.append({'label': st.label, 'sql': "lifecycle_stage = '" ~ st.id ~ "'"}) -%}
+            {%- endfor -%}
+            {%- set d2 = {} -%}
+            {%- do d2.update(d) -%}
+            {%- do d2.update({'bands': stage_bands}) -%}
+            {%- do dims.append(d2) -%}
+        {%- else -%}
+            {%- do dims.append(d) -%}
+        {%- endif -%}
+    {%- endfor -%}
+    {%- do s.update({'dimensions': dims}) -%}
+
     {#- validate, so a typo fails the build instead of producing an odd pack -#}
     {%- if (s.window_days | int) not in pocore_kpi_windows() -%}
         {{ exceptions.raise_compiler_error("po_core: pack.window_days must be one of " ~ pocore_kpi_windows() ~ ", got " ~ s.window_days) }}
@@ -73,4 +93,4 @@
 
 
 {#- The engine version the pack checks it is compatible with (keep in step with dbt_project.yml). -#}
-{% macro pocore_version() %}{{ return('0.3.5') }}{% endmacro %}
+{% macro pocore_version() %}{{ return('0.3.6') }}{% endmacro %}

@@ -1,7 +1,7 @@
 {{ config(enabled=pocore_module_enabled('pack')) }}
 
 {#
-  pocore_export__pack_cube — the Planning Pack's "Build a population" data.
+  pocore_export__pack_cube — Supporter Insights' "Build a population" data.
   ONE ROW PER PERIOD x COMBINATION OF DIMENSION VALUES (the client's pack.dimensions).
   Counts and sums only: no person ids, no names. The pack re-sums these rows in the browser
   for whatever values someone ticks.

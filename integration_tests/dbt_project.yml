@@ -54,7 +54,7 @@ vars:
       - id: set_lapsed_value_v1
         segments: [cust_lapsed_100_v1, std_lapsed_v1]
         include_remainder: true
-    # Planning Pack export: a client attr_ column, bands, and an apostrophe on purpose (D10 trap 7).
+    # Supporter Insights export: a client attr_ column, bands, and an apostrophe on purpose (D10 trap 7).
     pack:
       client_name: "Integration test (who's tested)"
       window_days: 90

@@ -365,9 +365,9 @@ segment_sets:
 
 ---
 
-## v0.3.1: the Planning Pack export (2026-11-18)
+## v0.3.1: Supporter Insights export (2026-11-18)
 
-- **New tier `export`** (schema `pocore`, module `pack`, on by default): tables shaped for one consumer, the Planning Pack (`pocore-pack`, its own repo).
+- **New tier `export`** (schema `pocore`, module `pack`, on by default): tables shaped for one consumer, Supporter Insights (`pocore-pack`, its own repo).
   - `pocore_export__pack_cube`: one row per period (now / recent / same_season) × combination of the client's dropdown values; people, gave, revenue of givers and non-givers. Counts and sums only. Portable SQL (dbt macros), tested: the "now" rows add up to the population.
   - `pocore_export__pack_settings`: client name, window, holdout, minimum group size, engine version, as_of.
   - `pocore_export__pack_dimensions`: the dropdowns and bands, including the band SQL the pack writes into the segment rules it generates.
@@ -383,6 +383,10 @@ segment_sets:
 - **v0.3.3** person features `reactivations_lifetime`, `days_since_reactivation` (as of each month-end); one shared column list (`pocore_snapshot_columns`) for `foundation__person` and `foundation__person__month`, with a test that the two agree on every shared column.
 - **v0.3.4** actual (uncapped) revenue per person on `pocore__segment__month`; `revenue_cap` in the pack settings.
 - **v0.3.5** a third measure, `started_monthly`: signed up to a new monthly plan within 30/90/180/365 days (gift flag `is_recurring_signup`). Groups can use it as their `primary_kpi`.
+- **v0.3.6** "Planning Pack" renamed Supporter Insights. One list per engine concept, so a new one is added in one place:
+  - `pocore_measures()`: every group measure, with how it reads ("gave within {days} days") and whether its windows add up (false for `retained`). Exported as `pocore_export__pack_measures`; the pack words its charts from it.
+  - `pocore_active_days()` (365): the single 12-month line behind "active", "lapsed" (twice it) and a win-back gift.
+  - `pocore_lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
 
 ---
 

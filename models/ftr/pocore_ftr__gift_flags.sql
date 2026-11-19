@@ -12,7 +12,7 @@
     is_first_gift         gift_number = 1
     previous_gift_date    the person's previous eligible, non-refund gift
     days_since_previous_gift
-    is_reactivation_gift  an eligible, non-refund gift more than 365 days after the previous one
+    is_reactivation_gift  an eligible, non-refund gift more than 365 days (pocore_active_days) after the previous one
 #}
 
 with gifts as (
@@ -57,7 +57,7 @@ select
     p.previous_gift_date,
     {{ dbt.datediff('p.previous_gift_date', 'g.gift_date', 'day') }}                 as days_since_previous_gift,
     coalesce(p.previous_gift_date is not null
-        and {{ dbt.datediff('p.previous_gift_date', 'g.gift_date', 'day') }} > 365, false) as is_reactivation_gift
+        and {{ dbt.datediff('p.previous_gift_date', 'g.gift_date', 'day') }} > {{ pocore_active_days() }}, false) as is_reactivation_gift
 from gifts as g
 left join positive as p
     on p.gift_id = g.gift_id

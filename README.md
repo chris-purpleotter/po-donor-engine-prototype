@@ -161,4 +161,4 @@ vars:
 ```
 
 Then `dbt deps` and `dbt build`. Details: `SPEC.md` (the contract and decisions) and
-`DESIGN_v0.2.0.md` (foundation, certified, segments, the Planning Pack export).
+`DESIGN_v0.2.0.md` (foundation, certified, segments, Supporter Insights export).

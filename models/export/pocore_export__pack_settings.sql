@@ -1,7 +1,7 @@
 {{ config(enabled=pocore_module_enabled('pack')) }}
 
 {#
-  pocore_export__pack_settings — ONE ROW PER SETTING (key, value) for the Planning Pack:
+  pocore_export__pack_settings — ONE ROW PER SETTING (key, value) for Supporter Insights:
   the client's pack var (with defaults), plus the engine version and as_of, so the pack tool
   reads everything from the warehouse and needs no config of its own.
 #}
