@@ -387,6 +387,7 @@ segment_sets:
   - `pocore_measures()`: every group measure, with how it reads ("gave within {days} days") and whether its windows add up (false for `retained`). Exported as `pocore_export__pack_measures`; the pack words its charts from it.
   - `pocore_active_days()` (365): the single 12-month line behind "active", "lapsed" (twice it) and a win-back gift.
   - `pocore_lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
+- **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the pack. Primary choices single-sourced in `pocore_primary_choices_sql()` (shared with `pocore__segment`).
 
 ---
 
