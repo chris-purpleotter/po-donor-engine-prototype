@@ -7,11 +7,12 @@
                           one-time, or the FIRST payment of a recurring schedule (a new sign-up).
                           Routine recurring payments don't count.
     is_recurring_payment  an eligible, non-refund recurring payment (KPI `retained`, sustainer status)
+    is_recurring_signup   the FIRST payment of a recurring schedule: a new monthly sign-up (KPI `started_monthly`)
     gift_number           1, 2, 3 ... among the person's eligible, non-refund gifts (null otherwise)
     is_first_gift         gift_number = 1
     previous_gift_date    the person's previous eligible, non-refund gift
     days_since_previous_gift
-    is_reactivation_gift  an eligible, non-refund gift more than 365 days after the previous one
+    is_reactivation_gift  an eligible, non-refund gift more than 365 days (pocore_active_days) after the previous one
 #}
 
 with gifts as (
@@ -49,12 +50,14 @@ select
     (g.is_kpi_eligible and not g.is_refund
         and (g.gift_type = 'one_time' or g.gift_date = s.first_payment_date))       as is_qualifying,
     (g.is_kpi_eligible and not g.is_refund and g.gift_type = 'recurring')           as is_recurring_payment,
+    coalesce(g.is_kpi_eligible and not g.is_refund and g.gift_type = 'recurring'
+             and g.gift_date = s.first_payment_date, false)                         as is_recurring_signup,
     p.gift_number,
     coalesce(p.gift_number = 1, false)                                               as is_first_gift,
     p.previous_gift_date,
     {{ dbt.datediff('p.previous_gift_date', 'g.gift_date', 'day') }}                 as days_since_previous_gift,
     coalesce(p.previous_gift_date is not null
-        and {{ dbt.datediff('p.previous_gift_date', 'g.gift_date', 'day') }} > 365, false) as is_reactivation_gift
+        and {{ dbt.datediff('p.previous_gift_date', 'g.gift_date', 'day') }} > {{ pocore_active_days() }}, false) as is_reactivation_gift
 from gifts as g
 left join positive as p
     on p.gift_id = g.gift_id

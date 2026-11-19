@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.3.4'
+version: '0.3.6'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -41,7 +41,7 @@ models:
       +schema: pocore             # ADMIN: sign-off and health tables, next to certified
       +tags: ['pocore_admin']
     export:
-      +schema: pocore             # EXPORT: tables shaped for the Planning Pack (module 'pack')
+      +schema: pocore             # EXPORT: tables shaped for Supporter Insights (module 'pack')
       +tags: ['pocore_export']
 
 vars:
@@ -87,10 +87,10 @@ vars:
     # trustworthy) data for it. Off = its models aren't built, so its tables don't exist.
     modules:
       sustainers: true      # sustainer month/cohort models and pocore__cohort__age(__breakdown) (needs recurring gifts)
-      pack: true            # pocore_export__pack_* tables for the Planning Pack (settings: the `pack` var)
+      pack: true            # pocore_export__pack_* tables for Supporter Insights (settings: the `pack` var)
     # Sustainer cohorts (pocore__cohort__age). Months counted from the first recurring payment (month 1);
     # the longest of these two lists sets how many months of life get a row.
     sustainer_survival_months: [2, 6, 12, 24]     # "still giving in month N" columns
     sustainer_ltv_horizons_months: [12, 24, 60]   # cumulative revenue per starter through month N
-    # Planning Pack (models/export): see macros/pocore_pack_settings.sql for every setting and its default.
+    # Supporter Insights (models/export): see macros/pocore_pack_settings.sql for every setting and its default.
     pack: {}

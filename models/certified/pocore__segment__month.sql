@@ -36,6 +36,8 @@ with outcomes as (
         cast(round(max(case when kpi_id = 'retained' and outcome_window_days = {{ w }} then value * n end)) as {{ dbt.type_int() }}) as retained_count_{{ w }}d,
         {%- endif %}
         cast(round(max(case when kpi_id = 'gave' and outcome_window_days = {{ w }} then value * n end)) as {{ dbt.type_int() }})     as gave_count_{{ w }}d,
+        max(case when kpi_id = 'started_monthly' and outcome_window_days = {{ w }} then value end)   as started_monthly_rate_{{ w }}d,
+        cast(round(max(case when kpi_id = 'started_monthly' and outcome_window_days = {{ w }} then value * n end)) as {{ dbt.type_int() }}) as started_monthly_count_{{ w }}d,
         max(case when kpi_id = 'revenue_per_donor' and outcome_window_days = {{ w }} then value end) as revenue_per_person_{{ w }}d,
         max(case when kpi_id = 'revenue_per_donor' and outcome_window_days = {{ w }} then value_uncapped end) as revenue_per_person_uncapped_{{ w }}d,
         max(case when kpi_id = 'gave' and outcome_window_days = {{ w }}
@@ -66,6 +68,8 @@ select
     o.retained_count_{{ w }}d,
     {%- endif %}
     o.gave_count_{{ w }}d,
+    o.started_monthly_rate_{{ w }}d,
+    o.started_monthly_count_{{ w }}d,
     o.revenue_per_person_{{ w }}d,
     o.revenue_per_person_uncapped_{{ w }}d,
     o.is_complete_{{ w }}d

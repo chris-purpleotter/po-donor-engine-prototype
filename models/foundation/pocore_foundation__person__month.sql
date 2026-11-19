@@ -7,6 +7,7 @@
       or before it. The ingredients sit next to the derived values (days_since_last_gift,
       gift_count_12m ... next to lifecycle_stage).
     FORWARD (outcomes): what the person did in the N days AFTER that date: gave_<N>d,
+      started_monthly_<N>d (signed up to a new monthly plan),
       revenue_<N>d (capped), revenue_uncapped_<N>d, retained_<N>d, and is_complete_<N>d
       (false while the window hasn't fully happened yet: never treat those as final).
 
@@ -34,6 +35,7 @@ select
     -- outcomes after month_end_date
     {%- for w in windows %}
     o.gave_{{ w }}d,
+    o.started_monthly_{{ w }}d,
     o.revenue_{{ w }}d,
     o.revenue_uncapped_{{ w }}d,
     {%- if w in retained_windows %}

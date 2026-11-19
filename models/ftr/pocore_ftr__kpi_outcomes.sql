@@ -11,6 +11,9 @@
                 Qualifying = non-refund eligible gift that is one-time, OR the first
                 payment of a recurring schedule (a new sign-up). Routine recurring
                 payments don't count; upgrades don't count (day one).
+    started_monthly_Nd  1 if the person signs up to a NEW monthly plan (the first payment of a
+                recurring schedule) in (anchor, anchor + N days], else 0. Converting one-time
+                donors (or prospects) to monthly giving.
     revenue_Nd  net eligible giving in the window, floored at 0 and capped at
                 `revenue_cap`. revenue_uncapped_Nd kept for descriptive use.
     retained_Nd 1 if the donor is still an active sustainer on day anchor + N: a recurring
@@ -46,7 +49,8 @@ gifts_flagged as (
     select
         g.person_id, g.gift_id, g.gift_date, g.amount,
         f.is_qualifying,
-        f.is_recurring_payment
+        f.is_recurring_payment,
+        f.is_recurring_signup
     from {{ ref('pocore_can__gifts') }} as g
     inner join {{ ref('pocore_ftr__gift_flags') }} as f
         on f.gift_id = g.gift_id
@@ -64,6 +68,9 @@ outcomes as (
         max(case when q.is_qualifying
                   and q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
                  then 1 else 0 end)                                            as gave_{{ w }}d,
+        max(case when q.is_recurring_signup
+                  and q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
+                 then 1 else 0 end)                                            as started_monthly_{{ w }}d,
         coalesce(sum(case when q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
                           then q.amount end), 0)                               as revenue_uncapped_{{ w }}d
         {%- if w in retained_windows %},
@@ -88,6 +95,7 @@ select
     anchor_date,
     {%- for w in windows %}
     gave_{{ w }}d,
+    started_monthly_{{ w }}d,
     {{ pocore_clamp('revenue_uncapped_' ~ w ~ 'd', 0, revenue_cap) }}         as revenue_{{ w }}d,
     revenue_uncapped_{{ w }}d,
     {%- if w in retained_windows %}

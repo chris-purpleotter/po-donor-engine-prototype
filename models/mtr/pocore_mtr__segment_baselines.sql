@@ -9,6 +9,7 @@
   pocore_foundation__person__month), so every number traces back to rows an analyst can query.
     kpi 'gave'              metric_type 'rate'  value = share who gave,  variance = p(1-p)
     kpi 'retained'          metric_type 'rate'  value = share still an active sustainer at window end
+    kpi 'started_monthly'   metric_type 'rate'  value = share who signed up to a new monthly plan
     kpi 'revenue_per_donor' metric_type 'mean'  value = capped mean,     variance = sample variance
 
   revenue_gap_per_success (rate KPIs only): capped revenue per donor among those who
@@ -23,7 +24,7 @@
 #}
 
 {%- set windows = pocore_kpi_windows() -%}
-{%- set retained_windows = pocore_kpi_windows('retained') -%}
+{%- set measure_ids = pocore_measure_ids() -%}
 {%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
 {%- set float_type = dbt.type_float() -%}
 
@@ -39,12 +40,11 @@ with joined as (
         p.person_id,
         p.month_end_date as anchor_date,
         {%- for w in windows %}
-        p.gave_{{ w }}d,
+        {%- for k in measure_ids if w in pocore_kpi_windows(k) %}
+        p.{{ k }}_{{ w }}d,
+        {%- endfor %}
         p.revenue_{{ w }}d,
         p.revenue_uncapped_{{ w }}d,
-        {%- if w in retained_windows %}
-        p.retained_{{ w }}d,
-        {%- endif %}
         p.is_complete_{{ w }}d{{ ',' if not loop.last }}
         {%- endfor %}
     from {{ ref('pocore_foundation__person__segment__month') }} as m
@@ -64,7 +64,7 @@ aggregated as (
         anchor_date,
         count(*) as n,
         {%- for w in windows %}
-        {%- for k in ['gave', 'retained'] if k == 'gave' or w in retained_windows %}
+        {%- for k in measure_ids if w in pocore_kpi_windows(k) %}
         avg(cast({{ k }}_{{ w }}d as {{ float_type }}))                                       as {{ k }}_{{ w }}d_rate,
         avg(case when {{ k }}_{{ w }}d = 1 then cast(revenue_{{ w }}d as {{ float_type }}) end)
             - coalesce(avg(case when {{ k }}_{{ w }}d = 0 then cast(revenue_{{ w }}d as {{ float_type }}) end), 0)
@@ -81,9 +81,8 @@ aggregated as (
 
 )
 
-{%- set rate_kpis = ['gave', 'retained'] %}
 {% for w in windows %}
-{%- for k in rate_kpis if k == 'gave' or w in retained_windows %}
+{%- for k in measure_ids if w in pocore_kpi_windows(k) %}
 select
     segment_id, {{ desc_cols | join(', ') }},
     '{{ k }}'                                                       as kpi_id,

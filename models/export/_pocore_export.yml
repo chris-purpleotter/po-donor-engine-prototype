@@ -1,6 +1,6 @@
 version: 2
 
-# EXPORT (v0.3.1): tables shaped for one consumer, the Planning Pack (pocore-pack). Built from
+# EXPORT (v0.3.1): tables shaped for one consumer, Supporter Insights (pocore-pack). Built from
 # foundation in the same run as everything else, so the pack can never be out of step with the
 # certified tables. Module 'pack' (on by default). Schema: pocore, next to certified.
 
@@ -22,7 +22,7 @@ models:
         data_tests: [not_null]
 
   - name: pocore_export__pack_settings
-    description: "One row per Planning Pack setting (client_name, window_days, holdout_pct, min_group_size, engine_version, as_of)."
+    description: "One row per Supporter Insights setting (client_name, window_days, holdout_pct, min_group_size, engine_version, as_of)."
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['setting']}
@@ -34,3 +34,12 @@ models:
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['dimension', 'band_position']}
+
+  - name: pocore_export__pack_measures
+    description: >
+      One row per group measure (primary_kpi), from macro pocore_measures: measure_name ("gave"),
+      phrase with a {days} placeholder ("gave within {days} days") and adds_up (a longer window
+      always includes a shorter one; false for retained). The pack words its charts from this.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['kpi_id']}

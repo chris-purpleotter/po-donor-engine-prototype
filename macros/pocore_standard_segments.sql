@@ -28,7 +28,7 @@
 {#
   Every segment the engine builds: standard + the client's custom `segments` var.
   Custom segments may set primary_window_days (otherwise summary_default_window_days) and
-  primary_kpi ('gave' or 'retained'; otherwise 'gave').
+  primary_kpi (any id in pocore_measures(); otherwise 'gave').
 #}
 {#
   standard_splits (client var): break down STANDARD segments without redefining them, e.g.
@@ -56,8 +56,8 @@
             'primary_kpi': s.get('primary_kpi', 'gave'),
             'split_by': standard_splits.get(s.id) if s.id in standard_ids else s.get('split_by')
         }) -%}
-        {%- if out[-1].primary_kpi not in ['gave', 'retained'] -%}
-            {{ exceptions.raise_compiler_error("po_core: segment " ~ s.id ~ " primary_kpi must be 'gave' or 'retained', got '" ~ out[-1].primary_kpi ~ "'") }}
+        {%- if out[-1].primary_kpi not in pocore_measure_ids() -%}
+            {{ exceptions.raise_compiler_error("po_core: segment " ~ s.id ~ " primary_kpi must be one of " ~ pocore_measure_ids() | join(', ') ~ ", got '" ~ out[-1].primary_kpi ~ "'") }}
         {%- endif -%}
     {%- endfor -%}
     {{ return(out) }}

@@ -47,7 +47,7 @@ donor_dates as (
 ),
 
 -- KPI-eligible gifts, with the reactivation flag from pocore_ftr__gift_flags
--- (a positive gift more than 365 days after the person's previous positive gift).
+-- (a positive gift more than 365 days, pocore_active_days(), after the person's previous positive gift).
 gifts as (
 
     select
@@ -136,7 +136,7 @@ flagged as (
         (w.days_since_last_recurring is not null
             and w.days_since_last_recurring <= {{ recurring_active_days }})          as is_recurring_active,
         (w.first_gift_date is not null and w.days_since_first_gift <= 90)            as is_new_donor,
-        (w.days_since_reactivation is not null and w.days_since_reactivation <= 365) as is_reactivated
+        (w.days_since_reactivation is not null and w.days_since_reactivation <= {{ pocore_active_days() }}) as is_reactivated
     from with_days as w
 
 )
@@ -189,12 +189,13 @@ select
     f.days_since_reactivation,                                  -- days since the latest comeback (null: never)
     f.reactivations_lifetime,                                   -- comebacks after a 12+ month gap, to date
 
-    -- lifecycle stage (D6: first match wins)
+    -- lifecycle stage (D6: first match wins). Labels: pocore_lifecycle_stages().
+    -- 365 = pocore_active_days(): active within 12 months, lapsed the 12 months after that.
     case
         when f.is_recurring_active          then 'sustainer'
         when f.is_new_donor                 then 'new'
-        when f.days_since_last_gift <= 365  then 'active'
-        when f.days_since_last_gift <= 730  then 'lapsed'
+        when f.days_since_last_gift <= {{ pocore_active_days() }}      then 'active'
+        when f.days_since_last_gift <= {{ 2 * pocore_active_days() }}  then 'lapsed'
         when f.last_gift_date is not null   then 'deep_lapsed'
         else 'prospect'
     end                                                         as lifecycle_stage

@@ -28,7 +28,15 @@ with expected as (
     select 'cust_givers_v1',     'D04' union all
     select 'cust_givers_v1',     'D05' union all
     select 'cust_givers_v1',     'D06' union all
-    select 'cust_givers_v1',     'D10'
+    select 'cust_givers_v1',     'D10' union all
+    -- cust_could_go_monthly_v1 (not is_recurring_active): everyone in the population except D05
+    select 'cust_could_go_monthly_v1', 'D01' union all
+    select 'cust_could_go_monthly_v1', 'D02' union all
+    select 'cust_could_go_monthly_v1', 'D03' union all
+    select 'cust_could_go_monthly_v1', 'D04' union all
+    select 'cust_could_go_monthly_v1', 'D06' union all
+    select 'cust_could_go_monthly_v1', 'D07' union all
+    select 'cust_could_go_monthly_v1', 'D10'
 ),
 
 actual as (
