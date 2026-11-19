@@ -73,6 +73,9 @@ models:
       revenue_per_person_<N>d describe what those people did in the N days after; drop rows where
       is_complete_<N>d is false. To pool over several months use the counts:
       sum(gave_count_<N>d) / sum(people_in_segment), never an average of the rates.
+      For the group's OWN measure use the primary_* columns (no need to pick a measure column):
+      primary_rate / primary_count / is_primary_complete at the group's window, and
+      primary_rate_<N>d / primary_count_<N>d at every window.
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['segment_id', 'month_end_date']}
@@ -83,6 +86,19 @@ models:
         description: "People in the segment at this month-end who weren't at the previous one (a monthly flow: fine to add across months). Null for the first month."
       - name: people_leaving
         description: "People in the segment at the previous month-end who aren't at this one (monthly flow). Null for the first month."
+      - name: primary_kpi
+        description: "The group's measure (as pocore__segment.primary_kpi): what the primary_* columns count."
+        data_tests: [not_null]
+      - name: primary_window_days
+        description: "The group's headline window in days (as pocore__segment.outcome_window_days)."
+      - name: primary_rate
+        description: "Share of the group who reached its measure within its window, from this month-end. Use only where is_primary_complete."
+      - name: primary_count
+        description: "How many people that is (the numerator: pool months with sum(primary_count) / sum(people_in_segment))."
+      - name: is_primary_complete
+        description: "True when the group's window has fully passed for this month-end."
+      - name: primary_count_90d
+        description: "The group's measure within 90 days (count); primary_rate_<N>d is the share. Same for each window; null where the measure has no such window (retained at 30 days). Check is_complete_<N>d."
       - name: revenue_per_person_uncapped_365d
         description: "Average ACTUAL revenue per person in the 365 days after the month-end (no cap). x people_in_segment = the group's revenue. The capped revenue_per_person_<N>d columns are for planning maths, where a few very large gifts would swing averages. Same for each window."
 
