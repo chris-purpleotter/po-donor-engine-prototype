@@ -382,12 +382,20 @@ segment_sets:
 - **v0.3.2** `standard_splits`: break down the standard groups from config (no duplicate custom copies).
 - **v0.3.3** person features `reactivations_lifetime`, `days_since_reactivation` (as of each month-end); one shared column list (`pocore_snapshot_columns`) for `foundation__person` and `foundation__person__month`, with a test that the two agree on every shared column.
 - **v0.3.4** actual (uncapped) revenue per person on `pocore__segment__month`; `revenue_cap` in the pack settings.
-- **v0.3.5** a third measure, `started_monthly`: signed up to a new monthly plan within 30/90/180/365 days (gift flag `is_recurring_signup`). Groups can use it as their `primary_kpi`.
+- **v0.3.5** a third measure, `started_monthly`: signed up to a new monthly plan within 30/90/180/365 days (gift flag `is_first_recurring_payment`). Groups can use it as their `primary_kpi`.
 - **v0.3.6** "Planning Pack" renamed Supporter Insights. One list per engine concept, so a new one is added in one place:
   - `pocore_measures()`: every group measure, with how it reads ("gave within {days} days") and whether its windows add up (false for `retained`). Exported as `pocore_export__pack_measures`; the pack words its charts from it.
   - `pocore_active_days()` (365): the single 12-month line behind "active", "lapsed" (twice it) and a win-back gift.
   - `pocore_lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
 - **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the pack. Primary choices single-sourced in `pocore_primary_choices_sql()` (shared with `pocore__segment`).
+- **v0.3.8** what `ftr` means, and custom rollups.
+  - **`ftr` = one model per "what one row is".** Row-level, one per input source: `pocore_ftr__gift` (was `gift_flags`; now carries the gift's contract columns plus the engine's definitions). Person × month-end: `pocore_ftr__person__month_lookback` (was `person_snapshot`; looking back) and `pocore_ftr__person__month_lookahead` (was `kpi_outcomes`; looking ahead).
+  - **Source rule:** person-level models read a source only through its row-level `ftr` model (gifts only from `pocore_ftr__gift`, never `pocore_can__gifts`), so each definition lives once.
+  - **Segments read only `_lookback`:** rules run on a table with no future columns, so a rule can't peek. `foundation__person__month` joins lookback + lookahead for analysis.
+  - **Standard rollups** (every client): `largest_gift_lifetime`, `largest_gift_12m`, `last_gift_amount`.
+  - **Custom rollups** (var `rollups`, macro `pocore_rollups`): `{source, agg, column?, label?, where?, window}` → column `rollup_{source}_{agg}[_{column}][_{label}]_{window}`, built as of each month-end from gifts on or before it (no peeking by construction). Refunds per D6: `sum` is net, other aggs ignore refunds. A `where` needs a `label`; change the `where` → change the label.
+  - **Column contract:** standard columns are the same for every client; `attr_*` (sent in by the client) and `rollup_*` (computed from the client's config) vary by client.
+  - Also: one macro per file; `pocore_as_of_date()`; `is_recurring_signup` → `is_first_recurring_payment`.
 
 ---
 

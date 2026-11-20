@@ -9,6 +9,8 @@
 -- cust_board_v1 (attr_is_board_member, a client extra column): D10 only.
 -- cust_givers_v1 (gift_count_lifetime > 0): D01-D06, D10 (D06's gift was refunded but still counts
 --   as a gift made; D07 has none). Its split_by rows and set rows are checked in assert_splits_and_sets.
+-- cust_big_gift_v1 (rollup_gift_count_100_plus_lifetime >= 1, v0.3.8): D03 ($100, $150) and D10 ($250);
+--   D08's $10,000 is a grant (not eligible) and D08 is an organization anyway.
 
 with expected as (
     select 'std_lapsed_v1' as segment_id, 'D01' as person_id union all
@@ -22,6 +24,8 @@ with expected as (
     select 'cust_lapsed_100_v1', 'D01' union all
     select 'cust_lapsed_100_v1', 'D10' union all
     select 'cust_board_v1',      'D10' union all
+    select 'cust_big_gift_v1',   'D03' union all
+    select 'cust_big_gift_v1',   'D10' union all
     select 'cust_givers_v1',     'D01' union all
     select 'cust_givers_v1',     'D02' union all
     select 'cust_givers_v1',     'D03' union all

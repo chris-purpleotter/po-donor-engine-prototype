@@ -43,7 +43,7 @@ select
     {%- endif %}
     o.is_complete_{{ w }}d{{ ',' if not loop.last }}
     {%- endfor %}
-from {{ ref('pocore_ftr__person_snapshot') }} as s
-inner join {{ ref('pocore_ftr__kpi_outcomes') }} as o
+from {{ ref('pocore_ftr__person__month_lookback') }} as s
+inner join {{ ref('pocore_ftr__person__month_lookahead') }} as o
     on  o.person_id   = s.person_id
     and o.anchor_date = s.snapshot_date

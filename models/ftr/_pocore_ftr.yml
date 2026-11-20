@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: pocore_ftr__person_snapshot
+  - name: pocore_ftr__person__month_lookback
     description: >
       One row per person per month-end snapshot date. Every value is computed as of that
       month-end from KPI-eligible gifts only (SPEC §5). This column list is the menu
@@ -38,7 +38,7 @@ models:
       - name: is_reactivated
         description: "Gave in the last 365 days after a gap of more than 365 days."
 
-  - name: pocore_ftr__kpi_outcomes
+  - name: pocore_ftr__person__month_lookahead
     description: >
       What each donor did AFTER each anchor date (SPEC §4). One row per donor x anchor_date.
       One column per KPI x window (fixed windows 30/90/180/365 days; retained only 90/180/365). gave_Nd counts

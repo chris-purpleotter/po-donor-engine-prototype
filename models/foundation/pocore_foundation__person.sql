@@ -14,7 +14,7 @@
 with latest as (
 
     select max(snapshot_date) as as_of_month_end
-    from {{ ref('pocore_ftr__person_snapshot') }}
+    from {{ ref('pocore_ftr__person__month_lookback') }}
 
 )
 
@@ -35,6 +35,6 @@ from {{ ref('pocore_can__people') }} as p
 cross join latest as l
 left join {{ ref('pocore_can__person_attributes') }} as a
     on a.person_id = p.person_id
-left join {{ ref('pocore_ftr__person_snapshot') }} as s
+left join {{ ref('pocore_ftr__person__month_lookback') }} as s
     on  s.person_id     = p.person_id
     and s.snapshot_date = l.as_of_month_end

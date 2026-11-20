@@ -3,7 +3,7 @@
   eligible or not, so totals tie exactly to the input (checked in pocore_admin__health).
 
   The contract columns, the client's attr_* gift columns, and what only the engine knows
-  (pocore_ftr__gift_flags): whether the gift counts as "gave", its number in the person's
+  (pocore_ftr__gift): whether the gift counts as "gave", its number in the person's
   giving history, reactivation, and the person's stage when they gave.
 
   Events roll up to any period: revenue by month, first gifts (new donors) by quarter,
@@ -17,7 +17,7 @@
 with snapshots as (
 
     select person_id, snapshot_date, lifecycle_stage
-    from {{ ref('pocore_ftr__person_snapshot') }}
+    from {{ ref('pocore_ftr__person__month_lookback') }}
 
 ),
 
@@ -46,7 +46,7 @@ select
     ga.attr_{{ c }},
     {%- endfor %}
 
-    -- engine definitions (pocore_ftr__gift_flags)
+    -- engine definitions (pocore_ftr__gift)
     f.is_qualifying,
     f.is_recurring_payment,
     f.gift_number,
@@ -61,7 +61,7 @@ select
     p.region,
     p.acquisition_channel
 from {{ ref('pocore_can__gifts') }} as g
-inner join {{ ref('pocore_ftr__gift_flags') }} as f
+inner join {{ ref('pocore_ftr__gift') }} as f
     on f.gift_id = g.gift_id
 inner join gift_months as gm
     on gm.gift_id = g.gift_id

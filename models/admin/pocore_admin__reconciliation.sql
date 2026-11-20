@@ -10,7 +10,6 @@
   No distinct-donor counts here: they don't add up across rows (see pocore_admin__health).
 #}
 
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 
 with gifts as (
 
@@ -32,7 +31,7 @@ select
     exclusion_reason,
     gift_type,
     is_refund,
-    (gift_date > {{ as_of_sql }})                                as is_after_as_of,
+    (gift_date > {{ pocore_as_of_date() }})                                as is_after_as_of,
     count(*)                                                     as gifts,
     sum(amount)                                                  as net_amount
 from gifts
@@ -40,4 +39,4 @@ group by
     {{ pocore_fiscal_year('gift_date') }},
     cast({{ dbt.date_trunc('month', 'gift_date') }} as date),
     gift_category, person_type, is_kpi_eligible, exclusion_reason, gift_type, is_refund,
-    (gift_date > {{ as_of_sql }})
+    (gift_date > {{ pocore_as_of_date() }})

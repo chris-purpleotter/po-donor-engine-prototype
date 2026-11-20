@@ -10,7 +10,6 @@
   screenshot says which settings produced it.
 #}
 
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 {%- set float = dbt.type_float() -%}
 {%- set str = dbt.type_string() -%}
 {%- set lookback = var('snapshot_lookback_months') | int -%}
@@ -22,14 +21,14 @@
     {%- if pocore_module_enabled(m) %}{% do modules_on.append(m) %}{% endif -%}
 {%- endfor -%}
 {#- latest COMPLETE month: the month that ends on or before as_of -#}
-{%- set last_complete_month_sql = "cast(" ~ dbt.dateadd('month', -1, dbt.date_trunc('month', dbt.dateadd('day', 1, as_of_sql))) ~ " as date)" -%}
+{%- set last_complete_month_sql = "cast(" ~ dbt.dateadd('month', -1, dbt.date_trunc('month', dbt.dateadd('day', 1, pocore_as_of_date()))) ~ " as date)" -%}
 
 with gifts as (
     select * from {{ ref('pocore_can__gifts') }}
 ),
 
 gifts_to_as_of as (
-    select * from gifts where gift_date <= {{ as_of_sql }}
+    select * from gifts where gift_date <= {{ pocore_as_of_date() }}
 ),
 
 monthly as (
@@ -44,7 +43,7 @@ monthly as (
 
 -- Months in the lookback, from the first gift month on (earlier months aren't "gaps").
 month_spine as (
-    select cast({{ dbt.dateadd('month', '-(cast(s.generated_number as ' ~ dbt.type_int() ~ ') - 1)', dbt.date_trunc('month', as_of_sql)) }} as date) as gift_month
+    select cast({{ dbt.dateadd('month', '-(cast(s.generated_number as ' ~ dbt.type_int() ~ ') - 1)', dbt.date_trunc('month', pocore_as_of_date())) }} as date) as gift_month
     from ({{ dbt.generate_series(lookback) }}) as s
 ),
 
@@ -80,7 +79,7 @@ last_12m as (
         sum(case when is_kpi_eligible then amount end)                                   as net_eligible,
         count(distinct case when is_kpi_eligible and not is_refund then person_id end)    as active_donors
     from gifts_to_as_of
-    where gift_date > cast({{ dbt.dateadd('month', -12, as_of_sql) }} as date)
+    where gift_date > cast({{ dbt.dateadd('month', -12, pocore_as_of_date()) }} as date)
 ),
 
 latest_members as (
@@ -127,9 +126,9 @@ checks as (
 
     select 'data_freshness' as check_id, 'all' as scope,
            'Days between the latest gift (on or before as_of) and as_of' as description,
-           cast({{ dbt.datediff('max(gift_date)', as_of_sql, 'day') }} as {{ float }}) as value,
+           cast({{ dbt.datediff('max(gift_date)', pocore_as_of_date(), 'day') }} as {{ float }}) as value,
            cast(45 as {{ float }}) as threshold,
-           case when {{ dbt.datediff('max(gift_date)', as_of_sql, 'day') }} > 45 then 'warn' else 'ok' end as status,
+           case when {{ dbt.datediff('max(gift_date)', pocore_as_of_date(), 'day') }} > 45 then 'warn' else 'ok' end as status,
            'latest gift ' || cast(max(gift_date) as {{ str }}) as detail
     from gifts_to_as_of
 
@@ -138,7 +137,7 @@ checks as (
            'Gifts dated after as_of (in reconciliation, ignored by every metric)',
            cast(count(*) as {{ float }}), cast(null as {{ float }}), 'info',
            cast(null as {{ str }})
-    from gifts where gift_date > {{ as_of_sql }}
+    from gifts where gift_date > {{ pocore_as_of_date() }}
 
     union all
     select 'months_without_gifts', 'all',
@@ -221,7 +220,7 @@ checks as (
 
 select
     checks.*,
-    {{ as_of_sql }}                                                     as as_of,
+    {{ pocore_as_of_date() }}                                                     as as_of,
     {{ var('fiscal_year_start_month') }}                                as fiscal_year_start_month,
     '{{ modules_on | join(", ") }}'                                     as modules_on
 from checks

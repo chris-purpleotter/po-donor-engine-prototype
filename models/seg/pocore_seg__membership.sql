@@ -3,7 +3,7 @@
   One row per segment_id x person_id x snapshot_date. Segments may overlap (except within a set).
 
   Everything is a segment. Three ways to define them, all in config:
-    1. a segment     a named, versioned filter on pocore_ftr__person_snapshot
+    1. a segment     a named, versioned filter on pocore_ftr__person__month_lookback
                      (standard: pocore_standard_segments(); custom: the client's `segments` var)
     2. split_by      on a segment: ALSO one segment per value of that column
                      ("Lapsed — Web", "Lapsed — Face to Face" ...), segment_id = <id>__<value>.
@@ -63,7 +63,7 @@
 {%- set population = "person_type = 'individual' and not is_deceased" -%}
 
 with snapshot as (
-    select * from {{ ref('pocore_ftr__person_snapshot') }}
+    select * from {{ ref('pocore_ftr__person__month_lookback') }}
     where {{ population }}
 )
 

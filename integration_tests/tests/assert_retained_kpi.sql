@@ -21,7 +21,7 @@ with expected as (
 wrong_outcomes as (
     select e.person_id, cast(e.anchor_date as {{ dbt.type_string() }}) as detail
     from expected as e
-    left join {{ ref('pocore_ftr__kpi_outcomes') }} as a
+    left join {{ ref('pocore_ftr__person__month_lookahead') }} as a
         on a.person_id = e.person_id and a.anchor_date = e.anchor_date
     where a.person_id is null
        or a.retained_90d  != e.retained_90d

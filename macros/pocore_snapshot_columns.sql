@@ -5,7 +5,8 @@
 
     pocore_snapshot_columns('attributes')  who the person is (contract + client attr_* columns)
     pocore_snapshot_columns('state')       what was true about them as of a month-end:
-                                           derived values first, then their ingredients
+                                           derived values first, then their ingredients,
+                                           then the client's custom rollup_* columns
 #}
 
 {% macro pocore_snapshot_columns(kind) %}
@@ -21,8 +22,9 @@
             'days_since_first_gift', 'days_since_last_gift', 'days_since_last_recurring',
             'days_since_reactivation', 'reactivations_lifetime',
             'gift_count_12m', 'net_giving_12m', 'gift_count_lifetime', 'net_giving_lifetime',
-            'net_giving_ytd', 'net_giving_prior_year'
-        ]) }}
+            'net_giving_ytd', 'net_giving_prior_year',
+            'largest_gift_lifetime', 'largest_gift_12m', 'last_gift_amount'
+        ] + (pocore_rollups() | map(attribute='name') | list)) }}
     {%- else -%}
         {{ exceptions.raise_compiler_error("po_core: pocore_snapshot_columns(kind) needs 'attributes' or 'state', got '" ~ kind ~ "'") }}
     {%- endif -%}

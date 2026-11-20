@@ -13,7 +13,6 @@
   in those years, and dropping them would rewrite history.
 #}
 
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 
 with gifts as (
 
@@ -21,7 +20,7 @@ with gifts as (
     from {{ ref('pocore_foundation__gift') }} as g
     where g.is_kpi_eligible
       and g.person_type = 'individual'
-      and g.gift_date <= {{ as_of_sql }}
+      and g.gift_date <= {{ pocore_as_of_date() }}
 
 ),
 
