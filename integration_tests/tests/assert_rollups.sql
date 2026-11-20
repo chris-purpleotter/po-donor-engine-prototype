@@ -14,7 +14,7 @@
 -- 4. The segment using a rollup holds exactly the people with a $100+ gift.
 
 with lookback as (
-    select * from {{ ref('pocore_ftr__person__month_lookback') }}
+    select * from {{ ref('pocore_rollup__person__month_end_lookback') }}
 ),
 
 expected as (
@@ -54,9 +54,9 @@ segment as (
             lookback.rollup_gift_count_100_plus_lifetime >= 1 as should_be_in,
             membership.person_id is not null as is_in
         from lookback
-        inner join {{ ref('pocore_can__people') }} as people
+        inner join {{ ref('pocore_input__people') }} as people
             on people.person_id = lookback.person_id
-        left join {{ ref('pocore_foundation__person__segment__month') }} as membership
+        left join {{ ref('pocore_group__membership__month') }} as membership
             on membership.person_id = lookback.person_id
             and membership.month_end_date = lookback.snapshot_date
             and membership.segment_id = 'cust_big_gift_v1'

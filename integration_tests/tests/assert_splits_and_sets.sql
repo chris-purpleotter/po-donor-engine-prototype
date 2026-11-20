@@ -9,7 +9,7 @@
 
 with latest as (
     select person_id, segment_id
-    from {{ ref('pocore_foundation__person__segment') }}
+    from {{ ref('pocore__person__segment') }}
 ),
 
 expected_set as (

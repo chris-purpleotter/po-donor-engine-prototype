@@ -1,6 +1,6 @@
 {#
   Lifecycle stages: ids and readable labels, in the order people think about them.
-  The stage LOGIC stays written out in pocore_ftr__person__month_lookback (first match wins); this list
+  The stage LOGIC stays written out in pocore_rollup__person__month_end_lookback (first match wins); this list
   only names the stages. Used for the Supporter Insights "Lifecycle stage" dropdown (as bands,
   see pocore_pack_settings). integration_tests/tests/assert_labels_and_measures fails if the
   snapshot produces a stage that isn't listed here.

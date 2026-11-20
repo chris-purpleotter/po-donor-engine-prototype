@@ -1,6 +1,6 @@
 {#
   The engine's group measures (a segment's `primary_kpi`): the ONE list. Adding a measure means
-  adding it here, computing its {id}_{N}d outcome columns in pocore_ftr__person__month_lookahead, and
+  adding it here, computing its {id}_{N}d outcome columns in pocore_rollup__person__month_end_lookahead, and
   carrying them through pocore_foundation__person__month; everything else reads this list.
 
     id       the kpi_id used in config (primary_kpi) and in column names ({id}_rate_90d ...)

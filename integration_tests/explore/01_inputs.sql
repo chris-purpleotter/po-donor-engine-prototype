@@ -5,11 +5,11 @@
 -- as_of for the test project = 2026-09-30 (every number is "as of" that date).
 
 -- query: people (the `people` contract: who exists, with or without gifts)
-select * from main_pocore_internal.pocore_can__people
+select * from main_pocore_internal.pocore_input__people
 where person_id in ('D04', 'D05');
 
 -- query: gifts (the `gifts` contract: one row per gift or refund)
 select gift_id, person_id, gift_date, amount, gift_type, recurring_schedule_id, is_refund, is_kpi_eligible
-from main_pocore_internal.pocore_can__gifts
+from main_pocore_internal.pocore_input__gifts
 where person_id in ('D04', 'D05')
 order by person_id, gift_date;

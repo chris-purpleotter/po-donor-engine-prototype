@@ -14,7 +14,7 @@ with expected as (
 
 select e.person_id, e.fiscal_year, 'wrong or missing' as problem
 from expected as e
-left join {{ ref('pocore_foundation__person__year') }} as a
+left join {{ ref('pocore__person__year') }} as a
     on a.person_id = e.person_id and a.fiscal_year = e.fiscal_year
 where a.person_id is null
    or a.gave is distinct from e.gave

@@ -7,7 +7,7 @@
 select segment_id, kpi_id, outcome_window_days, holdout_pct, n_eligible,
        baseline_recent, baseline_value as baseline_typical, baseline_same_season, planning_basis,
        mde_abs_planning as detectable_lift, is_testable
-from main_pocore_internal.pocore_mtr__segment_power
+from main_pocore_internal.pocore_group__power
 where segment_id = 'std_lapsed_v1' and kpi_id = 'gave'
   and outcome_window_days = 180 and baseline_lookback_months = 12
 order by holdout_pct;

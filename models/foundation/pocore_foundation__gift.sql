@@ -3,12 +3,13 @@
   eligible or not, so totals tie exactly to the input (checked in pocore_admin__health).
 
   The contract columns, the client's attr_* gift columns, and what only the engine knows
-  (pocore_ftr__gift): whether the gift counts as "gave", its number in the person's
+  (pocore_fact__gift): whether the gift counts as "gave", its number in the person's
   giving history, reactivation, and the person's stage when they gave.
 
-  Events roll up to any period: revenue by month, first gifts (new donors) by quarter,
-  reactivation gifts by fiscal year. Person attributes are repeated on each row so you can
-  group by them; no person-level MEASURES are repeated (they would be wrong to sum).
+  A TRANSACTION FACT of the foundation star: events roll up to any period (revenue by month,
+  first gifts by quarter, win-backs by fiscal year) and every amount adds up freely. Person
+  attributes are NOT copied here: join pocore_foundation__person on person_id to group by them.
+  source_system / source_record_id trace the gift back to its source record.
 
     stage_at_gift   the person's lifecycle stage at the last month-end BEFORE the gift
                     (null for gifts before the snapshot history starts)
@@ -17,7 +18,7 @@
 with snapshots as (
 
     select person_id, snapshot_date, lifecycle_stage
-    from {{ ref('pocore_ftr__person__month_lookback') }}
+    from {{ ref('pocore_rollup__person__month_end_lookback') }}
 
 ),
 
@@ -27,7 +28,7 @@ gift_months as (
     select
         gift_id,
         cast({{ dbt.dateadd('day', -1, dbt.date_trunc('month', 'gift_date')) }} as date) as previous_month_end
-    from {{ ref('pocore_can__gifts') }}
+    from {{ ref('pocore_input__gifts') }}
 
 )
 
@@ -42,11 +43,13 @@ select
     g.gift_category,
     g.is_kpi_eligible,
     g.exclusion_reason,
+    g.source_system,
+    g.source_record_id,
     {%- for c in var('gifts_extra_columns') %}
     ga.attr_{{ c }},
     {%- endfor %}
 
-    -- engine definitions (pocore_ftr__gift)
+    -- engine definitions (pocore_fact__gift)
     f.is_qualifying,
     f.is_recurring_payment,
     f.gift_number,
@@ -54,21 +57,14 @@ select
     f.is_reactivation_gift,
     f.previous_gift_date,
     f.days_since_previous_gift,
-    s.lifecycle_stage                    as stage_at_gift,
-
-    -- person attributes (repeated for grouping; never sum anything from here per person)
-    p.person_type,
-    p.region,
-    p.acquisition_channel
-from {{ ref('pocore_can__gifts') }} as g
-inner join {{ ref('pocore_ftr__gift') }} as f
+    s.lifecycle_stage                    as stage_at_gift
+from {{ ref('pocore_input__gifts') }} as g
+inner join {{ ref('pocore_fact__gift') }} as f
     on f.gift_id = g.gift_id
 inner join gift_months as gm
     on gm.gift_id = g.gift_id
 left join snapshots as s
     on  s.person_id     = g.person_id
     and s.snapshot_date = gm.previous_month_end
-left join {{ ref('pocore_can__gift_attributes') }} as ga
+left join {{ ref('pocore_input__gift_attributes') }} as ga
     on ga.gift_id = g.gift_id
-left join {{ ref('pocore_can__people') }} as p
-    on p.person_id = g.person_id

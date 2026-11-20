@@ -15,5 +15,8 @@ select
     -- extra (non-contract) column, brought through via people_extra_columns
     coalesce(BoardMember, false)         as is_board_member,
     -- optional cost data: turns on CPA and LTV:CPA in pocore_srv__sustainer_ltv
-    cast(AcquisitionCost as double)      as acquisition_cost
+    cast(AcquisitionCost as double)      as acquisition_cost,
+    -- lineage (v0.4.0): where each record came from
+    'test_crm'                           as source_system,
+    Id                                   as source_record_id
 from {{ ref('raw_donors') }}

@@ -1,7 +1,9 @@
 {#
-  The person snapshot's columns, in ONE place, so the foundation tables built from it can't
-  drift apart (pocore_foundation__person__month and pocore_foundation__person both use these).
-  Add a new snapshot feature here once and it appears in both.
+  The person's columns, in ONE place (v0.4.0 star):
+    'attributes' -> the person DIMENSION (pocore_foundation__person)
+    'state'      -> the month-end SNAPSHOT (pocore_foundation__person__month_end)
+  The group module reads both (and nothing else) for segment rules. Add a new snapshot feature
+  here once and it appears everywhere it should.
 
     pocore_snapshot_columns('attributes')  who the person is (contract + client attr_* columns)
     pocore_snapshot_columns('state')       what was true about them as of a month-end:

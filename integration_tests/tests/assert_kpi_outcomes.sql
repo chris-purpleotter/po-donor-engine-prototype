@@ -20,7 +20,7 @@ with expected as (
 select e.*, a.gave_90d as actual_gave_90d, a.gave_365d as actual_gave_365d,
        a.revenue_90d as actual_revenue_90d, a.is_complete_90d as actual_is_complete_90d
 from expected as e
-left join {{ ref('pocore_ftr__person__month_lookahead') }} as a
+left join {{ ref('pocore_rollup__person__month_end_lookahead') }} as a
     on a.person_id = e.person_id and a.anchor_date = e.anchor_date
 where a.person_id is null
    or a.gave_90d        != e.gave_90d

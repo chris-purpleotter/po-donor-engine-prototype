@@ -24,7 +24,7 @@
 {%- set last_complete_month_sql = "cast(" ~ dbt.dateadd('month', -1, dbt.date_trunc('month', dbt.dateadd('day', 1, pocore_as_of_date()))) ~ " as date)" -%}
 
 with gifts as (
-    select * from {{ ref('pocore_can__gifts') }}
+    select * from {{ ref('pocore_input__gifts') }}
 ),
 
 gifts_to_as_of as (
@@ -70,7 +70,7 @@ recurring_share as (
 
 unlinked as (
     select count(distinct gift_id) as n
-    from ({{ pocore_suspected_unlinked_recurring_sql(ref('pocore_can__gifts')) }}) as u
+    from ({{ pocore_suspected_unlinked_recurring_sql(ref('pocore_input__gifts')) }}) as u
 ),
 
 last_12m as (
@@ -84,8 +84,8 @@ last_12m as (
 
 latest_members as (
     select segment_id, count(*) as n
-    from {{ ref('pocore_seg__membership') }}
-    where snapshot_date = (select max(snapshot_date) from {{ ref('pocore_seg__membership') }})
+    from {{ ref('pocore_group__membership__month') }}
+    where month_end_date = (select max(month_end_date) from {{ ref('pocore_group__membership__month') }})
     group by segment_id
 ),
 
@@ -183,7 +183,7 @@ checks as (
     union all
     select 'donors_total', 'all', 'Donors in the canonical input',
            cast(count(*) as {{ float }}), cast(null as {{ float }}), 'info', cast(null as {{ str }})
-    from {{ ref('pocore_can__people') }}
+    from {{ ref('pocore_input__people') }}
 
     union all
     select 'gifts_total', 'all', 'Gifts in the canonical input (all dates)',

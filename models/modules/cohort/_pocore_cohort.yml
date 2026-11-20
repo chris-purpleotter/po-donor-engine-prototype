@@ -1,0 +1,19 @@
+version: 2
+
+# MODULE cohort: people who started together, and how they aged.
+
+models:
+  - name: pocore_cohort__person__sustainer_age
+    description: >
+      One row per sustainer x month since their first recurring payment (month 1), for months that
+      have started by as_of: gave (a real recurring payment that month), amount (net recurring
+      revenue), is_observed (the month is over). Donor-level: restarts keep the original start.
+    data_tests:
+      - pocore_unique_combination:
+          arguments:
+            columns: ['person_id', 'month_number']
+    columns:
+      - name: month_number
+        data_tests: [not_null]
+      - name: is_observed
+        data_tests: [not_null]

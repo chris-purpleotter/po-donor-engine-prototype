@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.3.8'
+version: '0.4.0'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -20,36 +20,44 @@ test-paths: ["tests"]
 
 models:
   po_core:
-    +schema: pocore_internal      # INTERNAL engine layers (can, ftr, seg, mtr): visible, unsupported, may change in any release
+    +schema: pocore_internal      # INTERNAL steps and modules: visible, unsupported, may change in any release
     +materialized: table
     +tags: ['pocore']             # select engine models with `tag:pocore` regardless of client folder layout
-    can:
-      +materialized: view       # canonical = checks over the client's conform models; no need to copy data
-    ftr:
-      +tags: ['pocore_ftr']
-    seg:
-      +tags: ['pocore_seg']
-    mtr:
-      +tags: ['pocore_mtr']       # internal statistics: read foundation, feed certified
+    # --- the foundation pipeline: input -> fact -> rollup -> foundation (always built)
+    input:
+      +materialized: view         # the contract: checks over the client's conform models; no need to copy data
+      +tags: ['pocore_input']
+    fact:
+      +tags: ['pocore_fact']      # one row per source row, with the engine's definitions
+    rollup:
+      +tags: ['pocore_rollup']    # one person per period, from fact models only
     foundation:
       +schema: pocore_foundation  # FOUNDATION: tested facts + definitions for advanced analysts (DESIGN §6.1)
       +tags: ['pocore_foundation']
+    # --- modules: use cases built on top of the foundation
+    modules:
+      group:
+        +tags: ['pocore_group']       # segments: who was in a situation at each month-end, and how they did
+      cohort:
+        +tags: ['pocore_cohort']      # people who started together, and how they aged
+      movement:
+        +tags: ['pocore_movement']    # yearly donor status
+      pack:
+        +schema: pocore               # EXPORT: tables shaped for Supporter Insights (module 'pack')
+        +tags: ['pocore_export']
     certified:
       +schema: pocore             # CERTIFIED: our opinionated answers; the schema BI tools connect to (DESIGN §6.2)
       +tags: ['pocore_certified']
     admin:
       +schema: pocore             # ADMIN: sign-off and health tables, next to certified
       +tags: ['pocore_admin']
-    export:
-      +schema: pocore             # EXPORT: tables shaped for Supporter Insights (module 'pack')
-      +tags: ['pocore_export']
-
 vars:
   po_core:
     # Input mapping (engine slot -> client model NAME, not path).
     # Clients override these under `vars: po_core:` in their own dbt_project.yml.
     people_model: donors
     gifts_model: gifts
+    person_identities_model:          # optional (v0.4.0): the client's identity crosswalk (source_system, source_record_id, person_id); unset = one identity per person from the people contract
     # Optional extra columns to bring through from each conform model (SPEC §6.5),
     # exposed as attr_<name>. Person attributes become snapshot columns (usable in segment rules and split_by).
     people_extra_columns: []

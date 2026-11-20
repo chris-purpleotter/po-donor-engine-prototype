@@ -1,0 +1,21 @@
+version: 2
+
+# MODULE movement: each person's yearly donor status (New, Second year, Continuing, Reactivated).
+
+models:
+  - name: pocore_movement__person__year
+    description: >
+      One row per donor x (fiscal) giving year with at least one real eligible gift, with the
+      annual donor_status: New, Second year, Continuing, Reactivated, Reactivated - second year.
+      Individuals only; deceased included (they gave in those years).
+    data_tests:
+      - pocore_unique_combination:
+          arguments:
+            columns: ['person_id', 'giving_year']
+    columns:
+      - name: donor_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['New', 'Second year', 'Continuing', 'Reactivated', 'Reactivated - second year']

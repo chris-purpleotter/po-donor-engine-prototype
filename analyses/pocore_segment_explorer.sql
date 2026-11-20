@@ -43,7 +43,7 @@ with people_months as (
         {{ kpi }}_{{ window_days }}d               as success,
         revenue_{{ window_days }}d                 as revenue,
         is_complete_{{ window_days }}d             as is_complete
-    from {{ ref('pocore_foundation__person__month') }}
+    from {{ ref('pocore_foundation__person__month_end') }}
     where person_type = 'individual'               -- the engine's default segment filter
       and not is_deceased
       and ({{ filters }})
@@ -53,7 +53,7 @@ with people_months as (
 latest as (
 
     select max(month_end_date) as latest_month_end
-    from {{ ref('pocore_foundation__person__month') }}
+    from {{ ref('pocore_foundation__person__month_end') }}
 
 ),
 

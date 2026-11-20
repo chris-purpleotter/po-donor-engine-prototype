@@ -1,5 +1,5 @@
 -- Certified tables must agree with each other and with foundation (DESIGN §6.2). Zero rows = pass.
---   1. pocore__year = sums of pocore_foundation__person__year, per fiscal year
+--   1. pocore__year = sums of pocore__person__year, per fiscal year
 --   2. pocore_foundation__gift ties exactly to the gifts input (every gift once)
 --   3. pocore__segment people_in_segment = membership rows at the latest month-end
 --   4. pocore__cohort__age__breakdown adds up to pocore__cohort__age (sustainers module)
@@ -14,7 +14,7 @@ with year_check as (
             count(case when movement_status = 'New' then 1 end)       as new_donors,
             count(case when movement_status = 'Lost' then 1 end)      as lost_donors,
             sum(amount_given)                                         as revenue
-        from {{ ref('pocore_foundation__person__year') }}
+        from {{ ref('pocore__person__year') }}
         group by fiscal_year
     ) as p on p.fiscal_year = y.fiscal_year
     where coalesce(p.total_donors, 0) != y.total_donors
@@ -26,7 +26,7 @@ with year_check as (
 gift_check as (
     select 1 as problem
     from (select count(*) as n, sum(amount) as amt from {{ ref('pocore_foundation__gift') }}) as f
-    cross join (select count(*) as n, sum(amount) as amt from {{ ref('pocore_can__gifts') }}) as c
+    cross join (select count(*) as n, sum(amount) as amt from {{ ref('pocore_input__gifts') }}) as c
     where f.n != c.n or abs(f.amt - c.amt) > 0.001
 ),
 
@@ -35,8 +35,8 @@ segment_check as (
     from {{ ref('pocore__segment') }} as s
     left join (
         select segment_id, count(*) as n
-        from {{ ref('pocore_foundation__person__segment__month') }}
-        where month_end_date = (select max(month_end_date) from {{ ref('pocore_foundation__person__segment__month') }})
+        from {{ ref('pocore_group__membership__month') }}
+        where month_end_date = (select max(month_end_date) from {{ ref('pocore_group__membership__month') }})
         group by segment_id
     ) as m on m.segment_id = s.segment_id
     where coalesce(m.n, 0) != s.people_in_segment

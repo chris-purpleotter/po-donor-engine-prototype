@@ -52,7 +52,7 @@ with outcomes as (
         max(case when kpi_id = 'gave' and outcome_window_days = {{ w }}
                  then case when is_window_complete then 1 else 0 end end) = 1               as is_complete_{{ w }}d
         {%- endfor %}
-    from {{ ref('pocore_mtr__segment_baselines') }}
+    from {{ ref('pocore_group__baselines__month') }}
     group by segment_id, segment_label, segment_source, parent_segment_id, split_by, split_value,
              segment_set_id, anchor_date
 
@@ -134,6 +134,6 @@ select
     o.is_complete_{{ w }}d
     {%- endfor %}
 from with_primary as o
-left join {{ ref('pocore_mtr__segment_flows') }} as f
+left join {{ ref('pocore_group__flows__month') }} as f
     on  f.segment_id    = o.segment_id
     and f.snapshot_date = o.snapshot_date

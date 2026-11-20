@@ -1,5 +1,5 @@
 -- Gift-level definitions: what counts as "gave" (layer: ftr -> foundation)
--- pocore_ftr__gift is the ONE place these definitions live; the snapshot, the KPI
+-- pocore_fact__gift is the ONE place these definitions live; the snapshot, the KPI
 -- outcomes and pocore_foundation__gift all read it, so they can never disagree.
 --   is_qualifying         counts as "gave": one-time gift, or the FIRST payment of a monthly plan
 --   is_recurring_payment  any real monthly payment (feeds sustainer status and "retained")

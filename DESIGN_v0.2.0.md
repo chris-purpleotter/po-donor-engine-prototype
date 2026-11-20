@@ -239,7 +239,7 @@ client project
   models/custom/      ← their opinions and extensions, client prefix
       ref('pocore__person__year')                    certified
       ref('pocore_foundation__person__month')        foundation (the usual starting point)
-      ref('pocore_mtr__segment_power')               ⚠ internal: at your own risk
+      ref('pocore_group__power')               ⚠ internal: at your own risk
   dbt_project.yml vars ← custom segments (and later custom features/outcomes, §9)
 
 po_core package       ← never edited per client
@@ -389,13 +389,45 @@ segment_sets:
   - `pocore_lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
 - **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the pack. Primary choices single-sourced in `pocore_primary_choices_sql()` (shared with `pocore__segment`).
 - **v0.3.8** what `ftr` means, and custom rollups.
-  - **`ftr` = one model per "what one row is".** Row-level, one per input source: `pocore_ftr__gift` (was `gift_flags`; now carries the gift's contract columns plus the engine's definitions). Person × month-end: `pocore_ftr__person__month_lookback` (was `person_snapshot`; looking back) and `pocore_ftr__person__month_lookahead` (was `kpi_outcomes`; looking ahead).
-  - **Source rule:** person-level models read a source only through its row-level `ftr` model (gifts only from `pocore_ftr__gift`, never `pocore_can__gifts`), so each definition lives once.
+  - **`ftr` = one model per "what one row is".** Row-level, one per input source: `pocore_fact__gift` (was `gift_flags`; now carries the gift's contract columns plus the engine's definitions). Person × month-end: `pocore_rollup__person__month_end_lookback` (was `person_snapshot`; looking back) and `pocore_rollup__person__month_end_lookahead` (was `kpi_outcomes`; looking ahead).
+  - **Source rule:** person-level models read a source only through its row-level `ftr` model (gifts only from `pocore_fact__gift`, never `pocore_input__gifts`), so each definition lives once.
   - **Segments read only `_lookback`:** rules run on a table with no future columns, so a rule can't peek. `foundation__person__month` joins lookback + lookahead for analysis.
   - **Standard rollups** (every client): `largest_gift_lifetime`, `largest_gift_12m`, `last_gift_amount`.
   - **Custom rollups** (var `rollups`, macro `pocore_rollups`): `{source, agg, column?, label?, where?, window}` → column `rollup_{source}_{agg}[_{column}][_{label}]_{window}`, built as of each month-end from gifts on or before it (no peeking by construction). Refunds per D6: `sum` is net, other aggs ignore refunds. A `where` needs a `label`; change the `where` → change the label.
   - **Column contract:** standard columns are the same for every client; `attr_*` (sent in by the client) and `rollup_*` (computed from the client's config) vary by client.
   - Also: one macro per file; `pocore_as_of_date()`; `is_recurring_signup` → `is_first_recurring_payment`.
+
+## v0.4.0: the pipeline, the foundation star, modules (2026-11-20)
+
+**The pipeline** (always built; every new source goes through the same steps):
+
+| Step | One row is about | Pattern | Reads |
+|---|---|---|---|
+| `input` | a contract record | select contract columns, cast types; no logic | the client's conform models |
+| `fact` | one event (a gift) | label each row with the engine's definitions; no aggregation | its `input` |
+| `rollup` | one person over a period | aggregate ONE person's events per period | `fact` models only (never `input`) |
+| `foundation` | the star | select, rename, join same-grain models; **never calculate** | `input`, `fact`, `rollup` |
+
+**Rollup kinds** (the name says how to add it up):
+- `__month_span`, `__year_span`: counts and sums of events *inside* a period. Spans don't overlap, so **sum freely** across people and time.
+- `__month_end_lookback` / `__month_end_lookahead`: a *moment* (as of / after a month-end). **Never sum across time**; sum across people at one month-end only.
+
+**The foundation star** (the contract clients and modules build on):
+- dimension `foundation__person` (who they are now, plus lineage); bridge `foundation__person_identity` (source record → person)
+- facts: `foundation__gift` (transaction), `__person__month_span` and `__person__year_span` (spans), `__person__month_end` (snapshot: lookback + lookahead)
+- no copied attributes: join `foundation__person` on `person_id`.
+
+**Modules** (use cases on top; each reads only the foundation):
+- `group`: segments. `group__membership__month` (rules see person attributes and looking-back state only, so they can't peek), `group__segment` (dimension), `group__baselines__month`, `group__power`, `group__flows__month`.
+- `cohort`: people who started together, by age (`cohort__person__sustainer_age`, `cohort__sustainer__age`).
+- `movement`: yearly donor status (`movement__person__year`).
+- `pack`: the Supporter Insights export.
+
+Certified gains the two person-level convenience tables that left foundation: `pocore__person__segment` (the roster) and `pocore__person__year` (the journey).
+
+**Lineage:** `source_system` and `source_record_id` on people and gifts (required columns, may be empty, warned). **Identity crosswalk:** optional input `person_identities_model` (source record → person); without it, one identity per person from the people contract.
+
+**Groups vs cohorts:** groups slide (re-evaluated at every month-end, measured from the calendar); cohorts are anchored (assigned once from an event, measured by each person's age since it).
 
 ---
 
