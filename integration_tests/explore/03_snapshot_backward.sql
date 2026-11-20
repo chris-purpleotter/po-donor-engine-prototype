@@ -1,6 +1,6 @@
 -- Looking BACKWARD: what was true about each person at each month-end (features)
 -- Every month-end is replayed as if it were "today", using only gifts ON OR BEFORE it
--- (the SQL: gift_date <= snapshot_date in models/ftr/pocore_ftr__person_snapshot.sql).
+-- (the SQL: gift_date <= snapshot_date in models/ftr/pocore_ftr__person__month_lookback.sql).
 -- Watch D05 turn from prospect into a sustainer in July 2026, and D04 go new -> active -> lapsed.
 
 -- query: D05, month by month (features as of each month-end)

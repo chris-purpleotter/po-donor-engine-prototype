@@ -20,7 +20,6 @@
   year match pocore__year (tested).
 #}
 
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 
 with people as (
 
@@ -38,7 +37,7 @@ giving as (
 ),
 
 bounds as (
-    select {{ pocore_fiscal_year(as_of_sql) }} as current_year
+    select {{ pocore_fiscal_year(pocore_as_of_date()) }} as current_year
 ),
 
 starts as (

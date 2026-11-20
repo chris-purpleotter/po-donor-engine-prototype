@@ -1,5 +1,5 @@
 {#
-  pocore_ftr__kpi_outcomes — what each person did AFTER each month-end (SPEC §4).
+  pocore_ftr__person__month_lookahead — what each person did AFTER each month-end (SPEC §4).
   One row per person x anchor_date (anchors = the month-end snapshot dates). Experiment
   readouts will use the same windows anchored on the client's assigned_date, in their own
   model (DESIGN §9.6), not as extra rows here. Wide: one column per KPI x window. Windows are FIXED by the engine
@@ -34,27 +34,24 @@
     {{ exceptions.raise_compiler_error("po_core: revenue_cap must be a number (it caps per-person revenue so outliers don't swamp means); null is not allowed") }}
 {%- endif -%}
 {%- set recurring_active_days = var('recurring_active_days') | int -%}
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 
 with anchors as (
 
     select person_id, snapshot_date as anchor_date
-    from {{ ref('pocore_ftr__person_snapshot') }}
+    from {{ ref('pocore_ftr__person__month_lookback') }}
 
 ),
 
--- Eligible gifts with the engine's gift-level definitions (pocore_ftr__gift_flags).
+-- Eligible gifts with the engine's gift-level definitions (pocore_ftr__gift).
 gifts_flagged as (
 
     select
-        g.person_id, g.gift_id, g.gift_date, g.amount,
-        f.is_qualifying,
-        f.is_recurring_payment,
-        f.is_recurring_signup
-    from {{ ref('pocore_can__gifts') }} as g
-    inner join {{ ref('pocore_ftr__gift_flags') }} as f
-        on f.gift_id = g.gift_id
-    where g.is_kpi_eligible
+        person_id, gift_id, gift_date, amount,
+        is_qualifying,
+        is_recurring_payment,
+        is_first_recurring_payment
+    from {{ ref('pocore_ftr__gift') }}
+    where is_kpi_eligible
 
 ),
 
@@ -68,7 +65,7 @@ outcomes as (
         max(case when q.is_qualifying
                   and q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
                  then 1 else 0 end)                                            as gave_{{ w }}d,
-        max(case when q.is_recurring_signup
+        max(case when q.is_first_recurring_payment
                   and q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
                  then 1 else 0 end)                                            as started_monthly_{{ w }}d,
         coalesce(sum(case when q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
@@ -101,7 +98,7 @@ select
     {%- if w in retained_windows %}
     retained_{{ w }}d,
     {%- endif %}
-    (cast({{ dbt.dateadd('day', w, 'anchor_date') }} as date) <= {{ as_of_sql }}) as is_complete_{{ w }}d
+    (cast({{ dbt.dateadd('day', w, 'anchor_date') }} as date) <= {{ pocore_as_of_date() }}) as is_complete_{{ w }}d
     {%- if not loop.last %},{% endif %}
     {%- endfor %}
 from outcomes

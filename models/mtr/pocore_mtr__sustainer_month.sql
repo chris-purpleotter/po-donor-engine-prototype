@@ -18,7 +18,6 @@
   Individuals only, KPI-eligible gifts only (consistent with the other metrics).
 #}
 
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 {%- set max_months = (var('sustainer_survival_months') + var('sustainer_ltv_horizons_months')) | max -%}
 
 with recurring_gifts as (
@@ -32,7 +31,7 @@ with recurring_gifts as (
     where g.gift_type = 'recurring'
       and g.is_kpi_eligible
       and g.person_type = 'individual'
-      and g.gift_date <= {{ as_of_sql }}
+      and g.gift_date <= {{ pocore_as_of_date() }}
 
 ),
 
@@ -86,9 +85,9 @@ select
     coalesce(gm.amount, 0)                                               as amount,
     -- month k is over when the first day of the NEXT month is at most the day after as_of
     cast({{ dbt.dateadd('month', 1, 'sm.month_start') }} as date)
-        <= cast({{ dbt.dateadd('day', 1, as_of_sql) }} as date)          as is_observed
+        <= cast({{ dbt.dateadd('day', 1, pocore_as_of_date()) }} as date)          as is_observed
 from sustainer_months as sm
 left join gift_months as gm
     on  gm.person_id    = sm.person_id
     and gm.month_start = sm.month_start
-where sm.month_start <= {{ as_of_sql }}
+where sm.month_start <= {{ pocore_as_of_date() }}

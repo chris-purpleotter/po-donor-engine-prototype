@@ -4,7 +4,7 @@ models:
   - name: pocore_seg__membership
     description: >
       Who is in which segment at each snapshot date. One row per segment_id x person_id x
-      snapshot_date. A segment is a named, versioned filter on pocore_ftr__person_snapshot,
+      snapshot_date. A segment is a named, versioned filter on pocore_ftr__person__month_lookback,
       plus the default filter (individuals, not deceased). Segments may overlap.
     columns:
       - name: segment_id

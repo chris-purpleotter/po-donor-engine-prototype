@@ -27,7 +27,7 @@ with expected as (
 
 actual as (
     select person_id, lifecycle_stage
-    from {{ ref('pocore_ftr__person_snapshot') }}
+    from {{ ref('pocore_ftr__person__month_lookback') }}
     where snapshot_date = cast('2026-09-30' as date)
 )
 

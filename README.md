@@ -150,7 +150,7 @@ erDiagram
 # packages.yml
 packages:
   - git: "https://github.com/chris-purpleotter/po-donor-engine-prototype.git"
-    revision: v0.3.4-prototype
+    revision: v0.3.8-prototype
 
 # dbt_project.yml
 vars:
@@ -158,6 +158,9 @@ vars:
     people_model: conform_people
     gifts_model: conform_gifts
     as_of: "{{ env_var('PO_AS_OF') }}"      # the month-end to report as of
+    rollups:                                 # optional: extra person columns from gifts
+      - {source: gift, agg: count, label: 100_plus, where: "amount >= 100", window: lifetime}
+      # -> rollup_gift_count_100_plus_lifetime, usable in segment rules
 ```
 
 Then `dbt deps` and `dbt build`. Details: `SPEC.md` (the contract and decisions) and

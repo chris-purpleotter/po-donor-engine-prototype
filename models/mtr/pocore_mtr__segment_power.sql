@@ -34,7 +34,6 @@
 {%- set instability_threshold = var('baseline_instability_threshold') | float -%}
 {%- set max_lift = var('max_plausible_relative_lift') | float -%}
 {%- set float_type = dbt.type_float() -%}
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 {#- The keys that identify one baseline series (a segment, or a slice of one). -#}
 {%- set keys = ['segment_id', 'kpi_id', 'outcome_window_days'] -%}
 {%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
@@ -116,8 +115,8 @@ seasonal as (
             - (sum(value * n) / sum(n)) * (sum(value * n) / sum(n)) as baseline_same_season_variance
     from ranked
     where cast({{ dbt.date_trunc('month', 'anchor_date') }} as date)
-          between cast({{ dbt.dateadd('month', -13, dbt.date_trunc('month', as_of_sql)) }} as date)
-              and cast({{ dbt.dateadd('month', -11, dbt.date_trunc('month', as_of_sql)) }} as date)
+          between cast({{ dbt.dateadd('month', -13, dbt.date_trunc('month', pocore_as_of_date())) }} as date)
+              and cast({{ dbt.dateadd('month', -11, dbt.date_trunc('month', pocore_as_of_date())) }} as date)
     group by {{ keys | join(', ') }}
 
 ),
@@ -233,5 +232,5 @@ select
     coalesce(
         baseline_planning > 0 and mde_abs_planning / baseline_planning <= {{ max_lift }},
         false)                                                              as is_testable,
-    cast({{ dbt.dateadd('day', 'outcome_window_days', as_of_sql) }} as date)        as readout_date_if_launched_now
+    cast({{ dbt.dateadd('day', 'outcome_window_days', pocore_as_of_date()) }} as date)        as readout_date_if_launched_now
 from with_mde

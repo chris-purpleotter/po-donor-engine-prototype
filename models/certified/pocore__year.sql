@@ -14,7 +14,6 @@
                       (early years of any dataset over-count "New")
 #}
 
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 
 with person_years as (
 
@@ -35,7 +34,7 @@ bounds as (
 
     select
         min(fiscal_year)                     as first_year,
-        {{ pocore_fiscal_year(as_of_sql) }}    as current_year
+        {{ pocore_fiscal_year(pocore_as_of_date()) }}    as current_year
     from person_years
 
 ),

@@ -42,10 +42,21 @@ vars:
         primary_kpi: started_monthly
         primary_window_days: 90
       # split_by: also one segment per value (cust_givers_v1__web, cust_givers_v1__direct_mail ...)
+      - id: cust_big_gift_v1
+        label: "Gave $100+ in one gift"
+        rule: "rollup_gift_count_100_plus_lifetime >= 1"
       - id: cust_givers_v1
         label: "Has given"
         rule: "gift_count_lifetime > 0"
         split_by: acquisition_channel
+    # Custom rollups (v0.3.8): person-level columns from gifts, as of each month-end.
+    # The 2nd-4th mirror standard columns on purpose, so the test can cross-check them.
+    rollups:
+      - {source: gift, agg: count, label: 100_plus, where: "amount >= 100", window: lifetime}
+      - {source: gift, agg: sum, column: amount, window: 12m}
+      - {source: gift, agg: max, column: amount, window: lifetime}
+      - {source: gift, agg: days_since, label: recurring, where: "gift_type = 'recurring'", window: lifetime}
+      - {source: gift, agg: any, window: ytd}
     # Break down a STANDARD segment without redefining it.
     standard_splits:
       std_lapsed_v1: region

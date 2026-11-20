@@ -15,7 +15,6 @@
   in several years).
 #}
 
-{%- set as_of_sql = "cast('" ~ var('as_of') ~ "' as date)" -%}
 
 with person_years as (
 
@@ -35,7 +34,7 @@ with person_years as (
 -- (Named differently from its column: BigQuery reads `select current_year from current_year`
 -- as the whole row, not the column.)
 bounds as (
-    select {{ pocore_fiscal_year(as_of_sql) }} as current_year
+    select {{ pocore_fiscal_year(pocore_as_of_date()) }} as current_year
 ),
 
 cohort_sizes as (

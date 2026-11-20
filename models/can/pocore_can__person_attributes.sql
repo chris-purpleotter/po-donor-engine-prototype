@@ -3,7 +3,7 @@
   model as pocore_can__people and renamed attr_<name>.
 
   Not contracted: the column list is the client's choice (var `people_extra_columns`).
-  Values pass through as-is (no casting). They flow into pocore_ftr__person_snapshot, so they
+  Values pass through as-is (no casting). They flow into pocore_ftr__person__month_lookback, so they
   can be used in segment rules and baseline breakdowns.
 
   D7 applies: current values only, so only attributes that DON'T change because of giving
