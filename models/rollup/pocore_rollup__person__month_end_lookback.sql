@@ -11,7 +11,7 @@
   Trade-off: each donor's gifts are scanned once per snapshot (fine at nonprofit
   scale). An incremental/windowed version is a later optimization (SPEC §5).
 
-  Gifts come ONLY from pocore_fact__gift (the gift's columns + the engine's definitions),
+  Gifts come ONLY from pocore_event__gift (the gift's columns + the engine's definitions),
   never from pocore_input__gifts. Custom rollups (var `rollups`, macro pocore_rollups) are
   generated into the same pass over gifts as rollup_* columns.
 
@@ -30,14 +30,10 @@
 ) -%}
 
 with
-    -- Inputs
-    pocore_input__people as (select * from {{ ref("pocore_input__people") }}),
+    -- Inputs: people from the entity layer, gifts from the event layer (never input)
+    pocore_entity__person as (select * from {{ ref("pocore_entity__person") }}),
 
-    pocore_input__person_attributes as (
-        select * from {{ ref("pocore_input__person_attributes") }}
-    ),
-
-    pocore_fact__gift as (select * from {{ ref("pocore_fact__gift") }}),
+    pocore_event__gift as (select * from {{ ref("pocore_event__gift") }}),
 
     month_starts as (
 
@@ -62,10 +58,10 @@ with
     -- Step 2: every donor at every snapshot date after their record existed.
     donor_dates as (
 
-        select pocore_input__people.person_id, snapshot_dates.snapshot_date
-        from pocore_input__people
+        select pocore_entity__person.person_id, snapshot_dates.snapshot_date
+        from pocore_entity__person
         cross join snapshot_dates
-        where pocore_input__people.created_at <= snapshot_dates.snapshot_date
+        where pocore_entity__person.created_at <= snapshot_dates.snapshot_date
 
     ),
 
@@ -74,12 +70,12 @@ with
     gifts as (
 
         select
-            pocore_fact__gift.*
+            pocore_event__gift.*
             {%- for r in rollups %}{% if r.where %},
             ({{ r.where }}) as rollup_match_{{ loop.index }}
             {%- endif %}{% endfor %}
-        from pocore_fact__gift
-        where pocore_fact__gift.is_kpi_eligible
+        from pocore_event__gift
+        where pocore_event__gift.is_kpi_eligible
 
     ),
 
@@ -270,12 +266,12 @@ select
     flagged.snapshot_date,
 
     -- donor attributes (current values, allowed under D7)
-    pocore_input__people.created_at,
-    pocore_input__people.person_type,
-    pocore_input__people.is_deceased,
-    pocore_input__people.region,
-    pocore_input__people.acquisition_channel,
-    pocore_input__people.acquisition_theme,
+    pocore_entity__person.created_at,
+    pocore_entity__person.person_type,
+    pocore_entity__person.is_deceased,
+    pocore_entity__person.region,
+    pocore_entity__person.acquisition_channel,
+    pocore_entity__person.acquisition_theme,
 
     -- first gift
     flagged.first_gift_date,
@@ -343,12 +339,9 @@ select
     end as lifecycle_stage
     {#- Client-chosen donor attributes (SPEC §6.5): usable in segment rules and breakdowns.
         (A Jinja comment, not SQL `--`: the trimmed comma below would otherwise land inside it.) #}
-    {%- for c in var("people_extra_columns") %}, pocore_input__person_attributes.attr_{{ c }} {%- endfor %}
+    {%- for c in var("people_extra_columns") %}, pocore_entity__person.attr_{{ c }} {%- endfor %}
     {#- Custom rollups (var `rollups`, macro pocore_rollups). #}
     {%- for r in rollups %}, flagged.{{ r.name }} {%- endfor %}
 
 from flagged
-inner join pocore_input__people on pocore_input__people.person_id = flagged.person_id
-left join
-    pocore_input__person_attributes
-    on pocore_input__person_attributes.person_id = flagged.person_id
+inner join pocore_entity__person on pocore_entity__person.person_id = flagged.person_id

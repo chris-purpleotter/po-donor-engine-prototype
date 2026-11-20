@@ -1,9 +1,9 @@
 {#
-pocore_fact__gift — ONE ROW PER GIFT (every gift in the contract, refunds and
+pocore_event__gift — ONE ROW PER GIFT (every gift in the contract, refunds and
 ineligible gifts included). The gift's own columns plus the engine's gift-level
-definitions. The single source for both: person-level models
-(pocore_rollup__person__month_end_lookback / _lookahead) read gifts ONLY from here, never
-from pocore_input__gifts, so the definitions can't drift.
+definitions. The single source for both: rollups and the foundation read gifts ONLY from
+here, never from pocore_input__gifts, so the definitions can't drift. EVENT layer: one row
+per thing that happened, labelled; no aggregation.
 is_qualifying         counts as "gave" (KPI `gave`): an eligible, non-refund gift
 that is
 one-time, or the FIRST payment of a recurring schedule (a new sign-up).
@@ -60,6 +60,12 @@ select
     gifts.is_kpi_eligible,
     gifts.gift_category,
     gifts.recurring_schedule_id,
+    gifts.exclusion_reason,
+    gifts.source_system,
+    gifts.source_record_id,
+    {%- for c in var('gifts_extra_columns') %}
+    gift_attributes.attr_{{ c }},
+    {%- endfor %}
     -- the engine's definitions
     coalesce(
         gifts.is_kpi_eligible
@@ -102,6 +108,8 @@ select
         false
     ) as is_reactivation_gift  -- a win-back: more than 365 days (pocore_active_days) since the person's previous gift; first gifts never count
 from gifts
+left join {{ ref("pocore_input__gift_attributes") }} as gift_attributes
+    on gift_attributes.gift_id = gifts.gift_id
 left join eligible_gifts on eligible_gifts.gift_id = gifts.gift_id
 left join
     schedule_starts

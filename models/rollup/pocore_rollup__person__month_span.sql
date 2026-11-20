@@ -13,7 +13,7 @@
     first_gifts         the person's first-ever eligible gift (0 or 1 per person, once ever)
     reactivation_gifts  win-back gifts (more than 365 days after the previous one)
 
-  Reads gifts ONLY from pocore_fact__gift (the source rule).
+  Reads gifts ONLY from pocore_event__gift (the source rule).
 #}
 
 with gifts as (
@@ -27,7 +27,7 @@ with gifts as (
         is_recurring_payment,
         is_first_gift,
         is_reactivation_gift
-    from {{ ref('pocore_fact__gift') }}
+    from {{ ref('pocore_event__gift') }}
     where is_kpi_eligible
 
 )

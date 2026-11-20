@@ -8,13 +8,4 @@
   in a month / year" on the _span tables; join on person_id.
 #}
 
-select
-    people.person_id,
-    {%- for c in pocore_snapshot_columns('attributes') %}
-    {{ 'person_attributes.' if c.startswith('attr_') else 'people.' }}{{ c }},
-    {%- endfor %}
-    people.source_system,
-    people.source_record_id
-from {{ ref('pocore_input__people') }} as people
-left join {{ ref('pocore_input__person_attributes') }} as person_attributes
-    on person_attributes.person_id = people.person_id
+select * from {{ ref('pocore_entity__person') }}

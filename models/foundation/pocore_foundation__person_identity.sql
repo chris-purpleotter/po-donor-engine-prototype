@@ -9,4 +9,4 @@ select
     source_system,
     source_record_id,
     person_id
-from {{ ref('pocore_input__person_identities') }}
+from {{ ref('pocore_entity__person_identity') }}

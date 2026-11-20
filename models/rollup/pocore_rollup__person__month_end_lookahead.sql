@@ -42,7 +42,7 @@ with anchors as (
 
 ),
 
--- Eligible gifts with the engine's gift-level definitions (pocore_fact__gift).
+-- Eligible gifts with the engine's gift-level definitions (pocore_event__gift).
 gifts_flagged as (
 
     select
@@ -50,7 +50,7 @@ gifts_flagged as (
         is_qualifying,
         is_recurring_payment,
         is_first_recurring_payment
-    from {{ ref('pocore_fact__gift') }}
+    from {{ ref('pocore_event__gift') }}
     where is_kpi_eligible
 
 ),

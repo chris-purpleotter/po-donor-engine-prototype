@@ -24,7 +24,7 @@ where p.person_id is null
 union all
 
 select gift_id, 'signup flag', 'gift'
-from {{ ref('pocore_fact__gift') }}
+from {{ ref('pocore_event__gift') }}
 where gift_id in ('G007', 'G008', 'G009')
   and is_first_recurring_payment is distinct from (gift_id = 'G007')
 

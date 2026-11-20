@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.4.0'
+version: '0.4.1'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -23,12 +23,16 @@ models:
     +schema: pocore_internal      # INTERNAL steps and modules: visible, unsupported, may change in any release
     +materialized: table
     +tags: ['pocore']             # select engine models with `tag:pocore` regardless of client folder layout
-    # --- the foundation pipeline: input -> fact -> rollup -> foundation (always built)
+    # --- the foundation pipeline (always built):
+    #     input -> entity (who exists)   ------------------------> foundation star
+    #     input -> event (what happened) -> rollup (per person) -> foundation star
     input:
       +materialized: view         # the contract: checks over the client's conform models; no need to copy data
       +tags: ['pocore_input']
-    fact:
-      +tags: ['pocore_fact']      # one row per source row, with the engine's definitions
+    entity:
+      +tags: ['pocore_entity']    # one row per thing that exists (a person), with engine-standard attributes
+    event:
+      +tags: ['pocore_event']     # one row per thing that happened (a gift), with the engine's definitions
     rollup:
       +tags: ['pocore_rollup']    # one person per period, from fact models only
     foundation:

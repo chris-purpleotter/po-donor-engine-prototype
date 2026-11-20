@@ -389,8 +389,8 @@ segment_sets:
   - `pocore_lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
 - **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the pack. Primary choices single-sourced in `pocore_primary_choices_sql()` (shared with `pocore__segment`).
 - **v0.3.8** what `ftr` means, and custom rollups.
-  - **`ftr` = one model per "what one row is".** Row-level, one per input source: `pocore_fact__gift` (was `gift_flags`; now carries the gift's contract columns plus the engine's definitions). Person × month-end: `pocore_rollup__person__month_end_lookback` (was `person_snapshot`; looking back) and `pocore_rollup__person__month_end_lookahead` (was `kpi_outcomes`; looking ahead).
-  - **Source rule:** person-level models read a source only through its row-level `ftr` model (gifts only from `pocore_fact__gift`, never `pocore_input__gifts`), so each definition lives once.
+  - **`ftr` = one model per "what one row is".** Row-level, one per input source: `pocore_event__gift` (was `gift_flags`; now carries the gift's contract columns plus the engine's definitions). Person × month-end: `pocore_rollup__person__month_end_lookback` (was `person_snapshot`; looking back) and `pocore_rollup__person__month_end_lookahead` (was `kpi_outcomes`; looking ahead).
+  - **Source rule:** person-level models read a source only through its row-level `ftr` model (gifts only from `pocore_event__gift`, never `pocore_input__gifts`), so each definition lives once.
   - **Segments read only `_lookback`:** rules run on a table with no future columns, so a rule can't peek. `foundation__person__month` joins lookback + lookahead for analysis.
   - **Standard rollups** (every client): `largest_gift_lifetime`, `largest_gift_12m`, `last_gift_amount`.
   - **Custom rollups** (var `rollups`, macro `pocore_rollups`): `{source, agg, column?, label?, where?, window}` → column `rollup_{source}_{agg}[_{column}][_{label}]_{window}`, built as of each month-end from gifts on or before it (no peeking by construction). Refunds per D6: `sum` is net, other aggs ignore refunds. A `where` needs a `label`; change the `where` → change the label.
@@ -399,14 +399,31 @@ segment_sets:
 
 ## v0.4.0: the pipeline, the foundation star, modules (2026-11-20)
 
-**The pipeline** (always built; every new source goes through the same steps):
+**The pipeline** (always built; every new source goes through the same steps). Two lanes:
+
+```
+input -> entity (who/what exists) -----------------------------> foundation star
+input -> event  (what happened)  -> rollup (one person, per period) -> foundation star
+```
 
 | Step | One row is about | Pattern | Reads |
 |---|---|---|---|
 | `input` | a contract record | select contract columns, cast types; no logic | the client's conform models |
-| `fact` | one event (a gift) | label each row with the engine's definitions; no aggregation | its `input` |
-| `rollup` | one person over a period | aggregate ONE person's events per period | `fact` models only (never `input`) |
-| `foundation` | the star | select, rename, join same-grain models; **never calculate** | `input`, `fact`, `rollup` |
+| `entity` | one thing that exists (a person) | join its attributes once; engine-standard attributes would be derived here | `input` |
+| `event` | one thing that happened (a gift) | label each row with the engine's definitions; no aggregation | `input` |
+| `rollup` | one person over a period | aggregate ONE person's events per period | `event` (+ `entity`) |
+| `foundation` | the star | select, rename, join; **never calculate** | `entity`, `event`, `rollup`: **never `input`** |
+
+Only `entity`, `event` and `admin` (which checks the inputs) read `input`.
+
+**Reserved third lane: `interval`** (not built; add it with the first source that needs it, likely
+`recurring_schedules`). For things true over a stretch of time (a monthly giving plan from start to
+cancel, a membership, a volunteer role): `interval__<thing>`, one row per stretch with `valid_from` /
+`valid_to`. Intervals can't be summed per period as-is, so `rollup` converts them first: into spans
+("active days in the month") or moments ("active at month-end"). Everything else fits the two lanes:
+other things that exist (campaigns, funds) and links between them (households) are `entity`; other
+things that happen on a date (email sends, attendance) are `event`; reference figures (finance
+totals, budgets) are read by `admin` or a module directly.
 
 **Rollup kinds** (the name says how to add it up):
 - `__month_span`, `__year_span`: counts and sums of events *inside* a period. Spans don't overlap, so **sum freely** across people and time.

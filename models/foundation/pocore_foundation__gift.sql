@@ -3,7 +3,7 @@
   eligible or not, so totals tie exactly to the input (checked in pocore_admin__health).
 
   The contract columns, the client's attr_* gift columns, and what only the engine knows
-  (pocore_fact__gift): whether the gift counts as "gave", its number in the person's
+  (pocore_event__gift, the only gift source): whether the gift counts as "gave", its number in the person's
   giving history, reactivation, and the person's stage when they gave.
 
   A TRANSACTION FACT of the foundation star: events roll up to any period (revenue by month,
@@ -28,7 +28,7 @@ gift_months as (
     select
         gift_id,
         cast({{ dbt.dateadd('day', -1, dbt.date_trunc('month', 'gift_date')) }} as date) as previous_month_end
-    from {{ ref('pocore_input__gifts') }}
+    from {{ ref('pocore_event__gift') }}
 
 )
 
@@ -46,25 +46,21 @@ select
     g.source_system,
     g.source_record_id,
     {%- for c in var('gifts_extra_columns') %}
-    ga.attr_{{ c }},
+    g.attr_{{ c }},
     {%- endfor %}
 
-    -- engine definitions (pocore_fact__gift)
-    f.is_qualifying,
-    f.is_recurring_payment,
-    f.gift_number,
-    f.is_first_gift,
-    f.is_reactivation_gift,
-    f.previous_gift_date,
-    f.days_since_previous_gift,
+    -- engine definitions
+    g.is_qualifying,
+    g.is_recurring_payment,
+    g.gift_number,
+    g.is_first_gift,
+    g.is_reactivation_gift,
+    g.previous_gift_date,
+    g.days_since_previous_gift,
     s.lifecycle_stage                    as stage_at_gift
-from {{ ref('pocore_input__gifts') }} as g
-inner join {{ ref('pocore_fact__gift') }} as f
-    on f.gift_id = g.gift_id
+from {{ ref('pocore_event__gift') }} as g
 inner join gift_months as gm
     on gm.gift_id = g.gift_id
 left join snapshots as s
     on  s.person_id     = g.person_id
     and s.snapshot_date = gm.previous_month_end
-left join {{ ref('pocore_input__gift_attributes') }} as ga
-    on ga.gift_id = g.gift_id

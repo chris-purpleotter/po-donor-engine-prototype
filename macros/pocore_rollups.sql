@@ -13,7 +13,7 @@
   fails loudly instead of silently meaning something else. The one exception: changing a
   `where` but keeping its `label`. Change the label too (like bumping a segment's _v1).
 
-    source  the row-level model: gift (pocore_fact__gift; eligible gifts only)
+    source  the row-level model: gift (pocore_event__gift; eligible gifts only)
     agg     count | sum | max | min | any (true/false) | days_since (days since the latest match)
     column  the gift column to sum / max / min (required for those, not allowed otherwise)
     where   optional SQL over that source's columns; needs a `label` (the name can't come from SQL)

@@ -6,7 +6,7 @@
   fiscal_year_start_month). Years don't overlap, so every column adds up freely, across people
   AND across years. Same columns as pocore_rollup__person__month_span.
 
-  Reads gifts ONLY from pocore_fact__gift (the source rule).
+  Reads gifts ONLY from pocore_event__gift (the source rule).
 #}
 
 with gifts as (
@@ -20,7 +20,7 @@ with gifts as (
         is_recurring_payment,
         is_first_gift,
         is_reactivation_gift
-    from {{ ref('pocore_fact__gift') }}
+    from {{ ref('pocore_event__gift') }}
     where is_kpi_eligible
 
 )
