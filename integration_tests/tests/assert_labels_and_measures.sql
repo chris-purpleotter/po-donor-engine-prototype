@@ -15,7 +15,7 @@ measures as (
 -- every stage the snapshot produces has a label (a band in the Lifecycle stage dropdown)
 unlabelled_stages as (
     select distinct p.lifecycle_stage as item, 'stage has no label in pocore_lifecycle_stages' as problem
-    from {{ ref('pocore_foundation__person__month') }} as p
+    from {{ ref('pocore_foundation__person__month_end') }} as p
     left join stage_bands as b on b.band_sql = concat('lifecycle_stage = ''', p.lifecycle_stage, '''')
     where b.band_sql is null
 ),

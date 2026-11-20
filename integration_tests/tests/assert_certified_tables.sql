@@ -17,11 +17,11 @@ with checks as (
            180
     union all
     select 'roster count',
-           (select count(*) from {{ ref('pocore_foundation__person__segment') }} where segment_id = 'std_lapsed_v1'),
+           (select count(*) from {{ ref('pocore__person__segment') }} where segment_id = 'std_lapsed_v1'),
            4
     union all
     select 'roster D01+D04+D06+D10',
-           (select count(*) from {{ ref('pocore_foundation__person__segment') }}
+           (select count(*) from {{ ref('pocore__person__segment') }}
              where segment_id = 'std_lapsed_v1' and person_id in ('D01', 'D04', 'D06', 'D10')),
            4
     union all

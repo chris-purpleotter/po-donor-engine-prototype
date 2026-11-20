@@ -20,7 +20,7 @@ with expected as (
 
 select e.*, a.n as actual_n, a.value as actual_value, a.is_window_complete as actual_complete
 from expected as e
-left join {{ ref('pocore_mtr__segment_baselines') }} as a
+left join {{ ref('pocore_group__baselines__month') }} as a
     on  a.segment_id      = e.segment_id
     and a.kpi_id          = e.kpi_id
     and a.outcome_window_days     = e.outcome_window_days

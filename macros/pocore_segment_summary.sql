@@ -43,7 +43,7 @@ with primary_choices as (
 power as (
 
     select *
-    from {{ ref('pocore_mtr__segment_power') }}
+    from {{ ref('pocore_group__power') }}
     where baseline_lookback_months = {{ lookback }}
       and holdout_pct = {{ holdout }}
 

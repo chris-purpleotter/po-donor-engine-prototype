@@ -3,14 +3,14 @@
   rule means a new _vN id and a MAJOR release (D12). Clients add their own with the
   `segments` var (ids prefixed `cust_`).
 
-  Each segment: id, label, rule (a SQL WHERE condition over pocore_ftr__person__month_lookback
+  Each segment: id, label, rule (a SQL WHERE condition over pocore_rollup__person__month_end_lookback
   columns), and primary_window_days — the window that matters most for that group,
   used for the headline numbers in the srv summary tables:
     new -> 90 (second gift), lapsed -> 180 (reactivation), others -> 365 (retention).
   primary_kpi (optional, default 'gave'): the KPI those headline numbers use. Sustainers use
   'retained' (still an active sustainer at the end of the window); for everyone else the
   question is whether they gave a qualifying gift.
-  The default filter (individuals, not deceased) is added by pocore_seg__membership.
+  The default filter (individuals, not deceased) is added by pocore_group__membership__month.
 #}
 
 {% macro pocore_standard_segments() %}

@@ -15,18 +15,9 @@ with expected as (
 
 select e.person_id, cast(e.month_end_date as {{ dbt.type_string() }}) as detail, 'person__month' as problem
 from expected as e
-left join {{ ref('pocore_foundation__person__month') }} as p
+left join {{ ref('pocore_foundation__person__month_end') }} as p
     on p.person_id = e.person_id and p.month_end_date = e.month_end_date
 where p.person_id is null
    or p.reactivations_lifetime is distinct from e.reactivations
    or p.days_since_reactivation is distinct from e.days_since
 
-union all
-
--- foundation__person shows the latest month-end's values
-select e.person_id, 'latest', 'person'
-from expected as e
-left join {{ ref('pocore_foundation__person') }} as p on p.person_id = e.person_id
-where e.month_end_date = cast('2026-09-30' as date)
-  and (p.reactivations_lifetime is distinct from e.reactivations
-       or p.days_since_reactivation is distinct from e.days_since)

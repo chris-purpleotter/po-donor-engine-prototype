@@ -45,8 +45,8 @@ with expected as (
 
 actual as (
     select segment_id, person_id
-    from {{ ref('pocore_seg__membership') }}
-    where snapshot_date = cast('2026-09-30' as date)
+    from {{ ref('pocore_group__membership__month') }}
+    where month_end_date = cast('2026-09-30' as date)
       and split_by is null          -- configured segments only (splits and sets: their own test)
       and segment_set_id is null
 )

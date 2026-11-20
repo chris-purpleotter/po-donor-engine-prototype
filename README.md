@@ -59,6 +59,7 @@ the engine never needs them.
 | `region` | string | no | |
 | `acquisition_channel` | string | no | how they were first recruited |
 | `acquisition_theme` | string | no | the cause or campaign theme that recruited them |
+| `source_system`, `source_record_id` | string | column yes, value may be empty (warned) | where the record came from, e.g. `salesforce` / `0035e00000AbC` |
 
 Extra columns (age band, giving capacity, volunteer status ...) can come along as `attr_*`
 via `people_extra_columns`.
@@ -88,6 +89,7 @@ count toward giving behaviour (a capital campaign, event tickets) stay in, with
 | `gift_category` | string | yes | `cash`, `pledge_payment`, `matching`, `daf`, `grant`, `bequest`, `in_kind`, `other` |
 | `is_kpi_eligible` | boolean | yes | counts toward giving behaviour |
 | `exclusion_reason` | string | when not eligible | e.g. `capital_campaign`, `event_fmv` |
+| `source_system`, `source_record_id` | string | column yes, value may be empty (warned) | where the gift record came from |
 
 | gift_id | person_id | gift_date | amount | gift_type | recurring_schedule_id | is_refund | gift_category | is_kpi_eligible | exclusion_reason |
 |---|---|---|---|---|---|---|---|---|---|
@@ -105,6 +107,7 @@ Each one unlocks more, and nothing breaks without it:
 |---|---|---|
 | `finance_totals` (fiscal year, revenue) | reconciliation against finance | available |
 | `people.acquisition_cost` (as an extra column) | cost per new monthly donor, LTV:CPA | available |
+| `person_identities` (source system, source record id, person id) | one person across several systems (CRM + email tool ...), traced back to every source record | available (v0.4.0); without it, one identity per person |
 | `recurring_schedules` (plan id, person, start, cancel date, cancel reason) | exact monthly-giver status, plan-based lapse and restart | planned: today monthly-giver status is inferred from recurring payments |
 
 The diagram shows where `recurring_schedules` will sit once it's built.

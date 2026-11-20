@@ -42,7 +42,7 @@ select
     p.mde_relative_planning                       as detectable_lift_relative,
     p.is_testable,
     p.readout_date_if_launched_now                as readable_by
-from {{ ref('pocore_mtr__segment_power') }} as p
+from {{ ref('pocore_group__power') }} as p
 inner join primary_kpis as k
     on  k.segment_id  = coalesce(p.parent_segment_id, '__remainder__')
     and k.primary_kpi = p.kpi_id

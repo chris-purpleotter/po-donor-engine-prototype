@@ -15,7 +15,7 @@ with expected as (
 
 select e.person_id, cast(e.month_end_date as {{ dbt.type_string() }}) as detail, 'outcome' as problem
 from expected as e
-left join {{ ref('pocore_foundation__person__month') }} as p
+left join {{ ref('pocore_foundation__person__month_end') }} as p
     on p.person_id = e.person_id and p.month_end_date = e.month_end_date
 where p.person_id is null
    or p.started_monthly_30d is distinct from e.sm30
@@ -24,7 +24,7 @@ where p.person_id is null
 union all
 
 select gift_id, 'signup flag', 'gift'
-from {{ ref('pocore_ftr__gift') }}
+from {{ ref('pocore_event__gift') }}
 where gift_id in ('G007', 'G008', 'G009')
   and is_first_recurring_payment is distinct from (gift_id = 'G007')
 

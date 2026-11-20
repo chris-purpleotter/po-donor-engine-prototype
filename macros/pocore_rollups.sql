@@ -13,7 +13,7 @@
   fails loudly instead of silently meaning something else. The one exception: changing a
   `where` but keeping its `label`. Change the label too (like bumping a segment's _v1).
 
-    source  the row-level model: gift (pocore_ftr__gift; eligible gifts only)
+    source  the row-level model: gift (pocore_event__gift; eligible gifts only)
     agg     count | sum | max | min | any (true/false) | days_since (days since the latest match)
     column  the gift column to sum / max / min (required for those, not allowed otherwise)
     where   optional SQL over that source's columns; needs a `label` (the name can't come from SQL)
@@ -22,8 +22,8 @@
   Refunds follow the engine's rule (D6): `sum` is net of refunds; every other agg ignores them.
   Peeking is impossible: only gifts on or before each month-end are ever seen.
 
-  Returns the validated list, each with its `name` added. The SQL is generated in
-  pocore_ftr__person__month_lookback.
+  Returns the validated list, each with its `name` added. The SQL for each one comes from
+  macro pocore_rollup_sql, used in pocore_rollup__person__month_end_lookback.
 #}
 {% macro pocore_rollups() %}
     {%- set sources = ['gift'] -%}

@@ -26,7 +26,7 @@ with person_years as (
         previous_giving_year,
         donor_status,
         years_lapsed_before_reactivation
-    from {{ ref('pocore_mtr__person_giving_year') }}
+    from {{ ref('pocore_movement__person__year') }}
 
 ),
 

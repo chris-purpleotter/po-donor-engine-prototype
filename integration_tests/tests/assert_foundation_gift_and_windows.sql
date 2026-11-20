@@ -32,7 +32,7 @@ union all
 
 select cast(e.month_end_date as {{ dbt.type_string() }}), 'kpi windows'
 from expected_windows as e
-left join {{ ref('pocore_foundation__person__month') }} as p
+left join {{ ref('pocore_foundation__person__month_end') }} as p
     on p.person_id = 'D05' and p.month_end_date = e.month_end_date
 where p.person_id is null
    or p.gave_30d is distinct from e.gave_30d

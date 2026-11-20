@@ -54,6 +54,10 @@ select
     end                                                      as exclusion_reason,
 
     -- extra (non-contract) column, brought through via gifts_extra_columns
-    campaign_code
+    campaign_code,
+
+    -- lineage (v0.4.0): where each record came from
+    'test_crm'                                               as source_system,
+    gift_id                                                  as source_record_id
 
 from labelled

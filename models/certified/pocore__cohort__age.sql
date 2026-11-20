@@ -31,5 +31,5 @@ select
     cost_per_new_sustainer,
     paid_ltv_to_date,
     paid_ltv_to_date / nullif(cost_per_new_sustainer, 0) as ltv_to_cpa
-from {{ ref('pocore_mtr__sustainer_cohort_month') }}
+from {{ ref('pocore_cohort__sustainer__age') }}
 where breakdown_by = 'all'
