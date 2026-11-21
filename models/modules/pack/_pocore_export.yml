@@ -37,7 +37,7 @@ models:
 
   - name: pocore_export__pack_measures
     description: >
-      One row per group measure (primary_kpi), from macro pocore_measures: measure_name ("gave"),
+      One row per group measure (primary_kpi), from macro pocore_engine_config__measures: measure_name ("gave"),
       phrase with a {days} placeholder ("gave within {days} days") and adds_up (a longer window
       always includes a shorter one; false for retained). The pack words its charts from this.
     data_tests:

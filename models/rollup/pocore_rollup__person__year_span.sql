@@ -13,7 +13,7 @@ with gifts as (
 
     select
         person_id,
-        {{ pocore_fiscal_year('gift_date') }} as fiscal_year,
+        {{ pocore_helpers__fiscal_year('gift_date') }} as fiscal_year,
         amount,
         is_refund,
         is_qualifying,

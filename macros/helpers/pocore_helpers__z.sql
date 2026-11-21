@@ -3,18 +3,18 @@
   SQL has no inverse-normal function and dbt Jinja has no math module, so common
   quantiles are listed here. An unsupported value fails the build clearly; add a row.
 
-      pocore_z(0.975) -> 1.959964   (two-sided alpha = 0.05)
-      pocore_z(0.8)   -> 0.841621   (power = 0.8)
+      pocore_helpers__z(0.975) -> 1.959964   (two-sided alpha = 0.05)
+      pocore_helpers__z(0.8)   -> 0.841621   (power = 0.8)
 #}
 
-{% macro pocore_z(probability) %}
+{% macro pocore_helpers__z(probability) %}
     {%- set table = {
         '0.800': 0.841621, '0.850': 1.036433, '0.900': 1.281552,
         '0.950': 1.644854, '0.975': 1.959964, '0.990': 2.326348, '0.995': 2.575829
     } -%}
     {%- set key = '%.3f' | format(probability | float) -%}
     {%- if key not in table -%}
-        {{ exceptions.raise_compiler_error("po_core: no z-value for probability " ~ key ~ " (supported: " ~ (table.keys() | list | sort | join(', ')) ~ "). Add it to macros/pocore_z.sql.") }}
+        {{ exceptions.raise_compiler_error("po_core: no z-value for probability " ~ key ~ " (supported: " ~ (table.keys() | list | sort | join(', ')) ~ "). Add it to macros/helpers/pocore_helpers__z.sql.") }}
     {%- endif -%}
     {{ return(table[key]) }}
 {% endmacro %}

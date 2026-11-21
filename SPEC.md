@@ -460,7 +460,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
     5. `dbt.generate_series` yields decimals on BigQuery: cast to `dbt.type_int()` when used as a year or count.
     6. Jinja: a SQL `--` comment right before a `{%-` block can swallow the following SQL (whitespace trimming).
     7. Doubled-quote escapes in string literals (`'month''s'`): BigQuery reads two adjacent literals. Reword fixed text; quote config values (e.g. segment labels) with `pode_string_literal()`.
-    8. `least()` / `greatest()`: NULL handling differs (BigQuery, Snowflake and Databricks return NULL if any argument is NULL; Postgres, Redshift and DuckDB ignore NULLs), and SQL Server only has them from 2022. Use `pocore_clamp(expr, low, high)` (a plain `case`). Found in v0.2.0: `greatest(NULL, 0)` in segment power returned 0 on DuckDB and NULL on BigQuery.
+    8. `least()` / `greatest()`: NULL handling differs (BigQuery, Snowflake and Databricks return NULL if any argument is NULL; Postgres, Redshift and DuckDB ignore NULLs), and SQL Server only has them from 2022. Use `pocore_helpers__clamp(expr, low, high)` (a plain `case`). Found in v0.2.0: `greatest(NULL, 0)` in segment power returned 0 on DuckDB and NULL on BigQuery.
 - **D11 Z-values for power** come from a lookup table in the engine macro `pode_z()` (probability → z). SQL has no inverse-normal function and dbt Jinja has no `math` module. An α or power value not in the table fails the build clearly; add a row to support it. (Originally specified as a seed; a macro is simpler, with no seed loading or column-type issues.)
 - **D12 Versioning (semantic versioning: MAJOR.MINOR.PATCH):**
 

@@ -42,7 +42,7 @@ segment_check as (
     where coalesce(m.n, 0) != s.people_in_segment
 )
 
-{%- if po_core.pocore_module_enabled('sustainers') %},
+{%- if po_core.pocore_client_config__module_enabled('sustainers') %},
 
 cohort_check as (
     select c.cohort_year, c.age_months
@@ -68,6 +68,6 @@ union all
 select 'year vs person_year' as check_name, cast(fiscal_year as {{ dbt.type_string() }}) as detail from year_check
 union all select 'foundation gift vs input', null from gift_check
 union all select 'segment size vs membership', segment_id from segment_check
-{%- if po_core.pocore_module_enabled('sustainers') %}
+{%- if po_core.pocore_client_config__module_enabled('sustainers') %}
 union all select 'cohort breakdown vs cohort', cast(cohort_year as {{ dbt.type_string() }}) from cohort_check
 {%- endif %}

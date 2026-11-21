@@ -103,8 +103,8 @@ The client never picks modules. They deliver contract inputs, and the engine bui
 | future `activities` | activity features, contact health checks (were holdout people contacted?) |
 
 **Mechanics:**
-- **`enabled` is the gate, not tags.** Module models start with `config(enabled = pocore_module_enabled('<module>'))`. A disabled model doesn't exist in the project, and dbt refuses at compile time if an enabled model depends on it. The client runs a plain `dbt build`. Tags (`tag:pocore_<module>`) are labels for selection, docs and BI, never the gate: a tag-excluded model still exists, and anything referencing it fails at run time.
-- **`pocore_module_enabled()` reads the contract:** a module is on when its input var is configured. This extends today's `modules:` var and `pode_module_enabled()`.
+- **`enabled` is the gate, not tags.** Module models start with `config(enabled = pocore_client_config__module_enabled('<module>'))`. A disabled model doesn't exist in the project, and dbt refuses at compile time if an enabled model depends on it. The client runs a plain `dbt build`. Tags (`tag:pocore_<module>`) are labels for selection, docs and BI, never the gate: a tag-excluded model still exists, and anything referencing it fails at run time.
+- **`pocore_client_config__module_enabled()` reads the contract:** a module is on when its input var is configured. This extends today's `modules:` var and `pode_module_enabled()`.
 - **Opinion modules** are the only explicit switches: modules that need no new data but may not be relevant (e.g. `sustainers: false` for a client without a monthly-giving programme). They default to on when the data supports them.
 - **Tables disappear, columns don't.** When a module is off, its whole tables are disabled, but its columns on shared tables stay as NULL (rule 6). Dashboards and custom models never break when a module is turned on or off.
 - **Configured ≠ good.** Supplying an input switches its module on. Health checks report fill rates per input and column, so a thin input is visible rather than silently producing weak numbers. Contract tests stay the hard gate.
@@ -371,7 +371,7 @@ segment_sets:
   - `pocore_export__pack_cube`: one row per period (now / recent / same_season) × combination of the client's dropdown values; people, gave, revenue of givers and non-givers. Counts and sums only. Portable SQL (dbt macros), tested: the "now" rows add up to the population.
   - `pocore_export__pack_settings`: client name, window, holdout, minimum group size, engine version, as_of.
   - `pocore_export__pack_dimensions`: the dropdowns and bands, including the band SQL the pack writes into the segment rules it generates.
-- **All client config lives in the client's dbt project** (`vars: po_core: pack:`; defaults and validation in `macros/pocore_pack_settings.sql`). The engine and the pack are client-agnostic.
+- **All client config lives in the client's dbt project** (`vars: po_core: pack:`; defaults and validation in `macros/client_config/pocore_client_config__pack_settings.sql`). The engine and the pack are client-agnostic.
 - **The pack reads through dbt** (`dbt show`, using the client's profiles.yml and environment login): no credentials of its own, no warehouse-specific code. It checks `engine_version` and fails clearly if incompatible.
 - **Delivery:** a step right after `dbt build` in the client's job (`pocore-pack build --project-dir . --target prod`), so a pack only ships when the engine's tests pass. Engine pinned by git tag, pack by version (also a git tag); both semver.
 
@@ -384,18 +384,18 @@ segment_sets:
 - **v0.3.4** actual (uncapped) revenue per person on `pocore__segment__month`; `revenue_cap` in the pack settings.
 - **v0.3.5** a third measure, `started_monthly`: signed up to a new monthly plan within 30/90/180/365 days (gift flag `is_first_recurring_payment`). Groups can use it as their `primary_kpi`.
 - **v0.3.6** "Planning Pack" renamed Supporter Insights. One list per engine concept, so a new one is added in one place:
-  - `pocore_measures()`: every group measure, with how it reads ("gave within {days} days") and whether its windows add up (false for `retained`). Exported as `pocore_export__pack_measures`; the pack words its charts from it.
-  - `pocore_active_days()` (365): the single 12-month line behind "active", "lapsed" (twice it) and a win-back gift.
-  - `pocore_lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
-- **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the pack. Primary choices single-sourced in `pocore_primary_choices_sql()` (shared with `pocore__segment`).
+  - `pocore_engine_config__measures()`: every group measure, with how it reads ("gave within {days} days") and whether its windows add up (false for `retained`). Exported as `pocore_export__pack_measures`; the pack words its charts from it.
+  - `pocore_engine_config__active_days()` (365): the single 12-month line behind "active", "lapsed" (twice it) and a win-back gift.
+  - `pocore_engine_config__lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
+- **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the pack. Primary choices single-sourced in `pocore_sql__primary_choices()` (shared with `pocore__segment`).
 - **v0.3.8** what `ftr` means, and custom rollups.
   - **`ftr` = one model per "what one row is".** Row-level, one per input source: `pocore_event__gift` (was `gift_flags`; now carries the gift's contract columns plus the engine's definitions). Person × month-end: `pocore_rollup__person__month_end_lookback` (was `person_snapshot`; looking back) and `pocore_rollup__person__month_end_lookahead` (was `kpi_outcomes`; looking ahead).
   - **Source rule:** person-level models read a source only through its row-level `ftr` model (gifts only from `pocore_event__gift`, never `pocore_input__gifts`), so each definition lives once.
   - **Segments read only `_lookback`:** rules run on a table with no future columns, so a rule can't peek. `foundation__person__month` joins lookback + lookahead for analysis.
   - **Standard rollups** (every client): `largest_gift_lifetime`, `largest_gift_12m`, `last_gift_amount`.
-  - **Custom rollups** (var `rollups`, macro `pocore_rollups`): `{source, agg, column?, label?, where?, window}` → column `rollup_{source}_{agg}[_{column}][_{label}]_{window}`, built as of each month-end from gifts on or before it (no peeking by construction). Refunds per D6: `sum` is net, other aggs ignore refunds. A `where` needs a `label`; change the `where` → change the label.
+  - **Custom rollups** (var `rollups`, macro `pocore_client_config__rollups`): `{source, agg, column?, label?, where?, window}` → column `rollup_{source}_{agg}[_{column}][_{label}]_{window}`, built as of each month-end from gifts on or before it (no peeking by construction). Refunds per D6: `sum` is net, other aggs ignore refunds. A `where` needs a `label`; change the `where` → change the label.
   - **Column contract:** standard columns are the same for every client; `attr_*` (sent in by the client) and `rollup_*` (computed from the client's config) vary by client.
-  - Also: one macro per file; `pocore_as_of_date()`; `is_recurring_signup` → `is_first_recurring_payment`.
+  - Also: one macro per file; `pocore_client_config__as_of_date()`; `is_recurring_signup` → `is_first_recurring_payment`.
 
 ## v0.4.0: the pipeline, the foundation star, modules (2026-11-20)
 
@@ -415,6 +415,14 @@ input -> event  (what happened)  -> rollup (one person, per period) -> foundatio
 | `foundation` | the star | select, rename, join; **never calculate** | `entity`, `event`, `rollup`: **never `input`** |
 
 Only `entity`, `event` and `admin` (which checks the inputs) read `input`.
+
+**Macros** (v0.5.0; one per file, named `pocore_<folder>__<name>` so the name says what kind it is):
+`engine_config/` the engine's fixed settings (windows, the 12-month line, measures, stages, standard
+groups, what counts as giving, version): change rarely, for every client; `client_config/` reads and
+checks the client's `vars` (what an option does, its default); `columns/` which columns the foundation
+tables have; `sql/` the generated SQL behind specific models; `helpers/` small building blocks.
+Client setup never edits a macro: it's always `vars`. **Breaking in v0.5.0:** conform models calling
+`pocore_default_kpi_eligible` must call `pocore_engine_config__default_kpi_eligible`.
 
 **Reserved third lane: `interval`** (not built; add it with the first source that needs it, likely
 `recurring_schedules`). For things true over a stretch of time (a monthly giving plan from start to
@@ -452,7 +460,7 @@ Certified gains the two person-level convenience tables that left foundation: `p
 
 1. **Renames:** package, prefix, `donor` → `person`, folders, schemas. No logic changes, so every number must equal v0.1.2.
 2. **Fixed KPI windows** `[30, 90, 180, 365]`, no longer a client var (rule 6). `retained` only at 90/180/365 (§13.2).
-3. **Warehouse trap 8: no `least` / `greatest`.** NULL handling differs by warehouse (BigQuery, Snowflake and Databricks return NULL if any argument is NULL; Postgres, Redshift and DuckDB ignore NULLs), and older SQL Server lacks them. Add a `pocore_clamp(expr, low, high)` macro (a `case` expression). Today's uses:
+3. **Warehouse trap 8: no `least` / `greatest`.** NULL handling differs by warehouse (BigQuery, Snowflake and Databricks return NULL if any argument is NULL; Postgres, Redshift and DuckDB ignore NULLs), and older SQL Server lacks them. Add a `pocore_helpers__clamp(expr, low, high)` macro (a `case` expression). Today's uses:
    - `pode_ftr__kpi_outcomes.sql` line 101;
    - `pode_mtr__segment_power.sql` line 175.
 

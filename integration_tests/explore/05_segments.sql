@@ -1,6 +1,6 @@
 -- Segments: rules over the backward-looking columns (layer: seg -> foundation)
 -- A segment is just a filter on the snapshot, evaluated at every month-end
--- (standard rules in macros/pocore_standard_segments.sql; custom ones in the client's vars).
+-- (standard rules in macros/engine_config/pocore_engine_config__standard_segments.sql; custom ones in the client's vars).
 -- People can be in several segments at once (e.g. a custom segment overlapping a standard one).
 
 -- query: which segments D04 and D05 were in, month by month (recent months)

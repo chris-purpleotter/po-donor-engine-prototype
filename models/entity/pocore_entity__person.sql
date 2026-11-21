@@ -7,14 +7,14 @@
   The slot for engine-standard person attributes: if the engine ever derives one for every
   client (an age band from a birth date, a standard region), it is computed here.
 #}
-
 select
     people.person_id,
-    {%- for c in pocore_snapshot_columns('attributes') %}
-    {{ 'person_attributes.' if c.startswith('attr_') else 'people.' }}{{ c }},
+    {%- for c in pocore_columns__person() %}
+        {{ "person_attributes." if c.startswith("attr_") else "people." }}{{ c }},
     {%- endfor %}
     people.source_system,
     people.source_record_id
-from {{ ref('pocore_input__people') }} as people
-left join {{ ref('pocore_input__person_attributes') }} as person_attributes
+from {{ ref("pocore_input__people") }} as people
+left join
+    {{ ref("pocore_input__person_attributes") }} as person_attributes
     on person_attributes.person_id = people.person_id

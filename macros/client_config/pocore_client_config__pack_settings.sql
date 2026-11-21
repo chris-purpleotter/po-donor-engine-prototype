@@ -22,7 +22,7 @@
   Keep each to a handful of values: every dimension multiplies the cube's size.
 #}
 
-{% macro pocore_pack_settings() %}
+{% macro pocore_client_config__pack_settings() %}
     {%- set defaults = {
         'client_name': project_name,
         'window_days': 180,
@@ -53,7 +53,7 @@
     {%- for d in s.dimensions -%}
         {%- if d.get('name') == 'lifecycle_stage' and not d.get('bands') -%}
             {%- set stage_bands = [] -%}
-            {%- for st in pocore_lifecycle_stages() -%}
+            {%- for st in pocore_engine_config__lifecycle_stages() -%}
                 {%- do stage_bands.append({'label': st.label, 'sql': "lifecycle_stage = '" ~ st.id ~ "'"}) -%}
             {%- endfor -%}
             {%- set d2 = {} -%}
@@ -67,8 +67,8 @@
     {%- do s.update({'dimensions': dims}) -%}
 
     {#- validate, so a typo fails the build instead of producing an odd pack -#}
-    {%- if (s.window_days | int) not in pocore_kpi_windows() -%}
-        {{ exceptions.raise_compiler_error("po_core: pack.window_days must be one of " ~ pocore_kpi_windows() ~ ", got " ~ s.window_days) }}
+    {%- if (s.window_days | int) not in pocore_engine_config__kpi_windows() -%}
+        {{ exceptions.raise_compiler_error("po_core: pack.window_days must be one of " ~ pocore_engine_config__kpi_windows() ~ ", got " ~ s.window_days) }}
     {%- endif -%}
     {%- set seen = [] -%}
     {%- for d in s.dimensions -%}

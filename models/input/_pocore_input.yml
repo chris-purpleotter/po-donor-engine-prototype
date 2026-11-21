@@ -106,7 +106,7 @@ models:
         description: "Client-local date (D5)."
         data_tests: [not_null]
       - name: amount
-        data_type: "{{ 'numeric' if target.type == 'bigquery' else 'numeric(18,2)' }}"   # must mirror macros/pocore_type_money.sql
+        data_type: "{{ 'numeric' if target.type == 'bigquery' else 'numeric(18,2)' }}"   # must mirror macros/helpers/pocore_helpers__type_money.sql
         description: "Reporting currency. Refunds negative, everything else positive (D4)."
         data_tests: [not_null]
       - name: gift_type
@@ -131,7 +131,7 @@ models:
                 values: ['cash', 'pledge_payment', 'matching', 'daf', 'grant', 'bequest', 'in_kind', 'other']
       - name: is_kpi_eligible
         data_type: boolean
-        description: "Conform's decision (default via pocore_default_kpi_eligible + client rules)."
+        description: "Conform's decision (default via pocore_engine_config__default_kpi_eligible + client rules)."
         data_tests: [not_null]
       - name: exclusion_reason
         data_type: string

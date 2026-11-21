@@ -1,7 +1,7 @@
 {#
   Return the CLIENT model that provides one of the engine's inputs ('donors', 'gifts', ...).
 
-      {{ pocore_input_model('gifts') }}
+      {{ pocore_client_config__input_model('gifts') }}
         -> var('gifts_model')               e.g. 'conform_gifts' (engine default: 'gifts')
         -> ref(project_name, 'conform_gifts')
 
@@ -14,6 +14,6 @@
   project_name, if conform ever ships as a shared package (e.g. NPSP).
 #}
 
-{% macro pocore_input_model(input) %}
+{% macro pocore_client_config__input_model(input) %}
     {{ return(ref(project_name, var(input ~ '_model'))) }}
 {% endmacro %}

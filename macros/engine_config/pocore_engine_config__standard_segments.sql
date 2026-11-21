@@ -13,7 +13,7 @@
   The default filter (individuals, not deceased) is added by pocore_group__membership__month.
 #}
 
-{% macro pocore_standard_segments() %}
+{% macro pocore_engine_config__standard_segments() %}
     {{ return([
         {'id': 'std_prospect_v1',    'label': 'Prospects (no gifts yet)',               'rule': "lifecycle_stage = 'prospect'",    'primary_window_days': 365},
         {'id': 'std_new_v1',         'label': 'New donors (first gift < 90 days)',      'rule': "lifecycle_stage = 'new'",         'primary_window_days': 90},

@@ -37,7 +37,7 @@ giving as (
 ),
 
 bounds as (
-    select {{ pocore_fiscal_year(pocore_as_of_date()) }} as current_year
+    select {{ pocore_helpers__fiscal_year(pocore_client_config__as_of_date()) }} as current_year
 ),
 
 starts as (
@@ -45,9 +45,9 @@ starts as (
     select
         p.person_id,
         case when g.first_gift_year is not null
-                  and g.first_gift_year < {{ pocore_fiscal_year('p.created_at') }}
+                  and g.first_gift_year < {{ pocore_helpers__fiscal_year('p.created_at') }}
              then g.first_gift_year
-             else {{ pocore_fiscal_year('p.created_at') }} end              as start_year,
+             else {{ pocore_helpers__fiscal_year('p.created_at') }} end              as start_year,
         g.first_gift_year                                                   as cohort_year
     from people as p
     left join (
@@ -76,9 +76,9 @@ person_years as (
 -- The month-end that represents each fiscal year: its last month-end in the snapshot history.
 year_dates as (
 
-    select {{ pocore_fiscal_year('month_end_date') }} as fiscal_year, max(month_end_date) as stage_date
+    select {{ pocore_helpers__fiscal_year('month_end_date') }} as fiscal_year, max(month_end_date) as stage_date
     from (select distinct month_end_date from {{ ref('pocore_foundation__person__month_end') }}) as d
-    group by {{ pocore_fiscal_year('month_end_date') }}
+    group by {{ pocore_helpers__fiscal_year('month_end_date') }}
 
 ),
 

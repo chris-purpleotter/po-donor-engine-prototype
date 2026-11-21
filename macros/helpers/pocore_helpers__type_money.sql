@@ -11,14 +11,14 @@
   Used in both the canonical model's cast and the contract's data_type.
 #}
 
-{% macro pocore_type_money() %}
-    {{ return(adapter.dispatch('pocore_type_money', 'po_core')()) }}
+{% macro pocore_helpers__type_money() %}
+    {{ return(adapter.dispatch('pocore_helpers__type_money', 'po_core')()) }}
 {% endmacro %}
 
-{% macro default__pocore_type_money() %}
+{% macro default__pocore_helpers__type_money() %}
     {{ return('numeric(18,2)') }}
 {% endmacro %}
 
-{% macro bigquery__pocore_type_money() %}
+{% macro bigquery__pocore_helpers__type_money() %}
     {{ return('numeric') }}
 {% endmacro %}

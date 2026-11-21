@@ -34,7 +34,7 @@ bounds as (
 
     select
         min(fiscal_year)                     as first_year,
-        {{ pocore_fiscal_year(pocore_as_of_date()) }}    as current_year
+        {{ pocore_helpers__fiscal_year(pocore_client_config__as_of_date()) }}    as current_year
     from person_years
 
 ),

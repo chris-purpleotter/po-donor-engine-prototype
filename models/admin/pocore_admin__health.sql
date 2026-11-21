@@ -16,19 +16,19 @@
 {%- set finance_model = var('finance_totals_model', none) -%}
 {%- set tolerance = var('finance_tolerance_pct') | float -%}
 {%- set modules_on = [] -%}
-{#- keep in step with the known modules in pocore_module_enabled -#}
+{#- keep in step with the known modules in pocore_client_config__module_enabled -#}
 {%- for m in ['sustainers'] -%}
-    {%- if pocore_module_enabled(m) %}{% do modules_on.append(m) %}{% endif -%}
+    {%- if pocore_client_config__module_enabled(m) %}{% do modules_on.append(m) %}{% endif -%}
 {%- endfor -%}
 {#- latest COMPLETE month: the month that ends on or before as_of -#}
-{%- set last_complete_month_sql = "cast(" ~ dbt.dateadd('month', -1, dbt.date_trunc('month', dbt.dateadd('day', 1, pocore_as_of_date()))) ~ " as date)" -%}
+{%- set last_complete_month_sql = "cast(" ~ dbt.dateadd('month', -1, dbt.date_trunc('month', dbt.dateadd('day', 1, pocore_client_config__as_of_date()))) ~ " as date)" -%}
 
 with gifts as (
     select * from {{ ref('pocore_input__gifts') }}
 ),
 
 gifts_to_as_of as (
-    select * from gifts where gift_date <= {{ pocore_as_of_date() }}
+    select * from gifts where gift_date <= {{ pocore_client_config__as_of_date() }}
 ),
 
 monthly as (
@@ -43,7 +43,7 @@ monthly as (
 
 -- Months in the lookback, from the first gift month on (earlier months aren't "gaps").
 month_spine as (
-    select cast({{ dbt.dateadd('month', '-(cast(s.generated_number as ' ~ dbt.type_int() ~ ') - 1)', dbt.date_trunc('month', pocore_as_of_date())) }} as date) as gift_month
+    select cast({{ dbt.dateadd('month', '-(cast(s.generated_number as ' ~ dbt.type_int() ~ ') - 1)', dbt.date_trunc('month', pocore_client_config__as_of_date())) }} as date) as gift_month
     from ({{ dbt.generate_series(lookback) }}) as s
 ),
 
@@ -70,7 +70,7 @@ recurring_share as (
 
 unlinked as (
     select count(distinct gift_id) as n
-    from ({{ pocore_suspected_unlinked_recurring_sql(ref('pocore_input__gifts')) }}) as u
+    from ({{ pocore_sql__suspected_unlinked_recurring(ref('pocore_input__gifts')) }}) as u
 ),
 
 last_12m as (
@@ -79,7 +79,7 @@ last_12m as (
         sum(case when is_kpi_eligible then amount end)                                   as net_eligible,
         count(distinct case when is_kpi_eligible and not is_refund then person_id end)    as active_donors
     from gifts_to_as_of
-    where gift_date > cast({{ dbt.dateadd('month', -12, pocore_as_of_date()) }} as date)
+    where gift_date > cast({{ dbt.dateadd('month', -12, pocore_client_config__as_of_date()) }} as date)
 ),
 
 latest_members as (
@@ -90,7 +90,7 @@ latest_members as (
 ),
 
 all_segments as (
-    {%- for s in pocore_all_segments() %}
+    {%- for s in pocore_client_config__all_segments() %}
     select '{{ s.id }}' as segment_id {% if not loop.last %}union all{% endif %}
     {%- endfor %}
 ),
@@ -106,9 +106,9 @@ empty_segments as (
 
 {%- if finance_model %}
 engine_by_year as (
-    select {{ pocore_fiscal_year('gift_date') }} as giving_year, sum(amount) as engine_net
+    select {{ pocore_helpers__fiscal_year('gift_date') }} as giving_year, sum(amount) as engine_net
     from gifts
-    group by {{ pocore_fiscal_year('gift_date') }}
+    group by {{ pocore_helpers__fiscal_year('gift_date') }}
 ),
 
 finance as (
@@ -126,9 +126,9 @@ checks as (
 
     select 'data_freshness' as check_id, 'all' as scope,
            'Days between the latest gift (on or before as_of) and as_of' as description,
-           cast({{ dbt.datediff('max(gift_date)', pocore_as_of_date(), 'day') }} as {{ float }}) as value,
+           cast({{ dbt.datediff('max(gift_date)', pocore_client_config__as_of_date(), 'day') }} as {{ float }}) as value,
            cast(45 as {{ float }}) as threshold,
-           case when {{ dbt.datediff('max(gift_date)', pocore_as_of_date(), 'day') }} > 45 then 'warn' else 'ok' end as status,
+           case when {{ dbt.datediff('max(gift_date)', pocore_client_config__as_of_date(), 'day') }} > 45 then 'warn' else 'ok' end as status,
            'latest gift ' || cast(max(gift_date) as {{ str }}) as detail
     from gifts_to_as_of
 
@@ -137,7 +137,7 @@ checks as (
            'Gifts dated after as_of (in reconciliation, ignored by every metric)',
            cast(count(*) as {{ float }}), cast(null as {{ float }}), 'info',
            cast(null as {{ str }})
-    from gifts where gift_date > {{ pocore_as_of_date() }}
+    from gifts where gift_date > {{ pocore_client_config__as_of_date() }}
 
     union all
     select 'months_without_gifts', 'all',
@@ -220,7 +220,7 @@ checks as (
 
 select
     checks.*,
-    {{ pocore_as_of_date() }}                                                     as as_of,
+    {{ pocore_client_config__as_of_date() }}                                                     as as_of,
     {{ var('fiscal_year_start_month') }}                                as fiscal_year_start_month,
     '{{ modules_on | join(", ") }}'                                     as modules_on
 from checks

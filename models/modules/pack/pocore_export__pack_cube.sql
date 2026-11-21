@@ -1,4 +1,4 @@
-{{ config(enabled=pocore_module_enabled('pack')) }}
+{{ config(enabled=pocore_client_config__module_enabled('pack')) }}
 
 {#
   pocore_export__pack_cube — Supporter Insights' "Build a population" data.
@@ -16,7 +16,7 @@
   Population: individuals, not deceased (the same as segments). Built from foundation.
 #}
 
-{%- set s = pocore_pack_settings() -%}
+{%- set s = pocore_client_config__pack_settings() -%}
 {%- set w = s.window_days | int -%}
 {%- set str = dbt.type_string() -%}
 {%- set flt = dbt.type_float() -%}
@@ -33,7 +33,7 @@ base as (
     -- the month-end snapshot plus who the person is (the dropdowns can use either)
     select
         p.*,
-        {%- for c in pocore_snapshot_columns('attributes') %}
+        {%- for c in pocore_columns__person() %}
         person.{{ c }},
         {%- endfor %}
         {{ dbt.datediff('p.month_end_date', 'l.latest_month_end', 'month') }} as months_back
@@ -86,7 +86,7 @@ dimmed as (
         {%- if d.bands %}
         case
             {%- for b in d.bands %}
-            when {{ b.sql }} then {{ pocore_string_literal(b.label) }}
+            when {{ b.sql }} then {{ pocore_helpers__string_literal(b.label) }}
             {%- endfor %}
             else 'unknown'
         end                                                         as {{ d.name }},
