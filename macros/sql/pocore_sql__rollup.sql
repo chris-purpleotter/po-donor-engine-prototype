@@ -1,11 +1,11 @@
 {#
-  The SQL for ONE custom rollup (one item of pocore_rollups()), used inside the roll-up step of
+  The SQL for ONE custom rollup (one item of pocore_client_config__rollups()), used inside the roll-up step of
   pocore_rollup__person__month_end_lookback, where each person x month-end row (`donor_dates`) is
   joined to that person's gifts on or before the month-end (`gifts`). Returns e.g.
 
       count(case when gifts.rollup_match_1 and not gifts.is_refund then 1 end)
 
-    r             the rollup: agg, column, where, window (see pocore_rollups)
+    r             the rollup: agg, column, where, window (see pocore_client_config__rollups)
     match_column  the true/false column on `gifts` that holds the rollup's `where` result
                   (computed once per gift in the model's `gifts` CTE)
 
@@ -26,7 +26,7 @@
     max / min   largest / smallest `column` among matching gifts (null if none)
     days_since  days from the latest matching gift to the month-end (null if none)
 #}
-{% macro pocore_rollup_sql(r, match_column) %}
+{% macro pocore_sql__rollup(r, match_column) %}
     {#- Step 1: conditions -#}
     {%- set conditions = [] -%}
     {%- if r.where -%}

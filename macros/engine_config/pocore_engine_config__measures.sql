@@ -11,11 +11,11 @@
              window"): someone retained at 90 days can be gone by 180. Reports may only say
              "each bar includes the ones above it" when this is true.
 
-  Windows per measure come from pocore_kpi_windows(id). Revenue (revenue_per_donor) is not a
+  Windows per measure come from pocore_engine_config__kpi_windows(id). Revenue (revenue_per_donor) is not a
   group measure: it is reported alongside every measure.
 #}
 
-{% macro pocore_measures() %}
+{% macro pocore_engine_config__measures() %}
     {{ return([
         {'id': 'gave',            'name': 'gave',                   'phrase': 'gave within {days} days',                'adds_up': true},
         {'id': 'started_monthly', 'name': 'started monthly giving', 'phrase': 'started monthly giving within {days} days', 'adds_up': true},

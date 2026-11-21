@@ -3,7 +3,7 @@
   alike), so every population gets the same headline numbers.
 
   Headline numbers per segment, today:
-    - each segment's PRIMARY window and PRIMARY KPI (pocore_standard_segments / custom
+    - each segment's PRIMARY window and PRIMARY KPI (pocore_engine_config__standard_segments / custom
       primary_window_days, primary_kpi): 'gave' for most, 'retained' for sustainers.
       Split and set segments use their parent segment's; a set's remainder uses the defaults.
     - first baseline lookback, the summary_holdout_pct holdout
@@ -19,25 +19,25 @@
                               NOT a ranking of where the money is.
 #}
 
-{% macro pocore_segment_summary() %}
+{% macro pocore_sql__segment_summary() %}
 
 {%- set lookback = var('baseline_lookback_months')[0] -%}
 {%- set holdout = var('summary_holdout_pct') -%}
-{%- set windows = pocore_kpi_windows() -%}
-{%- set segments = pocore_all_segments() -%}
+{%- set windows = pocore_engine_config__kpi_windows() -%}
+{%- set segments = pocore_client_config__all_segments() -%}
 
 {%- if holdout not in var('holdout_grid') -%}
     {{ exceptions.raise_compiler_error("po_core: summary_holdout_pct " ~ holdout ~ " must be one of holdout_grid " ~ var('holdout_grid')) }}
 {%- endif -%}
 {%- for s in segments -%}
-    {%- set allowed = pocore_kpi_windows('retained') if s.primary_kpi == 'retained' else windows -%}
+    {%- set allowed = pocore_engine_config__kpi_windows('retained') if s.primary_kpi == 'retained' else windows -%}
     {%- if s.primary_window_days not in allowed -%}
         {{ exceptions.raise_compiler_error("po_core: segment " ~ s.id ~ " primary_window_days " ~ s.primary_window_days ~ " must be one of " ~ allowed ~ " for KPI " ~ s.primary_kpi) }}
     {%- endif -%}
 {%- endfor -%}
 
 with primary_choices as (
-    {{ pocore_primary_choices_sql() }}
+    {{ pocore_sql__primary_choices() }}
 ),
 
 power as (

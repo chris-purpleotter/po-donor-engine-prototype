@@ -23,8 +23,8 @@
   they are partial and must never be pooled or reported as final.
 #}
 
-{%- set windows = pocore_kpi_windows() -%}
-{%- set measure_ids = pocore_measure_ids() -%}
+{%- set windows = pocore_engine_config__kpi_windows() -%}
+{%- set measure_ids = pocore_engine_config__measure_ids() -%}
 {%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
 {%- set float_type = dbt.type_float() -%}
 
@@ -40,7 +40,7 @@ with joined as (
         p.person_id,
         p.month_end_date as anchor_date,
         {%- for w in windows %}
-        {%- for k in measure_ids if w in pocore_kpi_windows(k) %}
+        {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
         p.{{ k }}_{{ w }}d,
         {%- endfor %}
         p.revenue_{{ w }}d,
@@ -64,7 +64,7 @@ aggregated as (
         anchor_date,
         count(*) as n,
         {%- for w in windows %}
-        {%- for k in measure_ids if w in pocore_kpi_windows(k) %}
+        {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
         avg(cast({{ k }}_{{ w }}d as {{ float_type }}))                                       as {{ k }}_{{ w }}d_rate,
         avg(case when {{ k }}_{{ w }}d = 1 then cast(revenue_{{ w }}d as {{ float_type }}) end)
             - coalesce(avg(case when {{ k }}_{{ w }}d = 0 then cast(revenue_{{ w }}d as {{ float_type }}) end), 0)
@@ -82,7 +82,7 @@ aggregated as (
 )
 
 {% for w in windows %}
-{%- for k in measure_ids if w in pocore_kpi_windows(k) %}
+{%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
 select
     segment_id, {{ desc_cols | join(', ') }},
     '{{ k }}'                                                       as kpi_id,

@@ -4,10 +4,10 @@
 
   var fiscal_year_start_month: 1 = calendar year (default), 4 = April, 7 = July, ...
 
-      pocore_fiscal_year('gift_date')   ->   SQL expression returning an integer year
+      pocore_helpers__fiscal_year('gift_date')   ->   SQL expression returning an integer year
 #}
 
-{% macro pocore_fiscal_year(date_expr) %}
+{% macro pocore_helpers__fiscal_year(date_expr) %}
     {%- set start = var('fiscal_year_start_month') | int -%}
     {%- if start == 1 -%}
         extract(year from {{ date_expr }})

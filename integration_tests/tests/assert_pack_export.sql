@@ -1,4 +1,4 @@
-{{ config(enabled=po_core.pocore_module_enabled('pack')) }}
+{{ config(enabled=po_core.pocore_client_config__module_enabled('pack')) }}
 
 -- Supporter Insights export (as_of = 2026-09-30, pack var in dbt_project.yml). Zero rows = pass.
 -- Population now (individuals, not deceased): D01-D07, D10 = 8 people.

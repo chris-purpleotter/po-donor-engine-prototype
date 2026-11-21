@@ -5,4 +5,4 @@
   Built from foundation (pocore_foundation__person__month_end) and the group module's membership via the
   engine's statistics (pocore_group__power).
 #}
-{{ pocore_segment_summary() }}
+{{ pocore_sql__segment_summary() }}

@@ -1,4 +1,4 @@
-{{ config(enabled=pocore_module_enabled('sustainers')) }}
+{{ config(enabled=pocore_client_config__module_enabled('sustainers')) }}
 
 {#
   pocore__cohort__age — ONE ROW PER SUSTAINER COHORT x MONTH OF LIFE (whole cohorts).

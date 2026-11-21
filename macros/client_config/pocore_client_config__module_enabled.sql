@@ -1,6 +1,6 @@
 {#
   Optional modules (SPEC §6.6). A module's models call this in their config:
-    {{ config(enabled=pocore_module_enabled('sustainers')) }}
+    {{ config(enabled=pocore_client_config__module_enabled('sustainers')) }}
   Client switch (their dbt_project.yml):
     vars: {po_core: {modules: {sustainers: false}}}
   Modules default to on. Unknown module names are an error (catches typos in the var).
@@ -9,11 +9,11 @@
   fails at parse time when the module is off.
 
   (Self-contained on purpose: when a client project calls this as
-  po_core.pocore_module_enabled(...) in a config() block, other engine macros
+  po_core.pocore_client_config__module_enabled(...) in a config() block, other engine macros
   aren't in scope.)
 #}
 
-{% macro pocore_module_enabled(module) %}
+{% macro pocore_client_config__module_enabled(module) %}
     {%- set known_modules = ['sustainers', 'pack'] -%}
     {%- set modules = var('modules', {}) or {} -%}
     {%- for m in modules -%}
@@ -22,7 +22,7 @@
         {%- endif -%}
     {%- endfor -%}
     {%- if module not in known_modules -%}
-        {{ exceptions.raise_compiler_error("po_core: pocore_module_enabled called with unknown module '" ~ module ~ "'") }}
+        {{ exceptions.raise_compiler_error("po_core: pocore_client_config__module_enabled called with unknown module '" ~ module ~ "'") }}
     {%- endif -%}
     {%- set v = modules.get(module, true) -%}
     {#- tolerate "false"/"true" strings (e.g. from env vars) as well as real booleans -#}

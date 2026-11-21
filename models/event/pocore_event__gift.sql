@@ -18,7 +18,7 @@ is_first_gift         gift_number = 1
 previous_gift_date    the person's previous eligible, non-refund gift
 days_since_previous_gift
 is_reactivation_gift  an eligible, non-refund gift more than 365 days
-(pocore_active_days) after the previous one
+(pocore_engine_config__active_days) after the previous one
 #}
 with
     gifts as (select * from {{ ref("pocore_input__gifts") }}),
@@ -104,9 +104,9 @@ select
                 "gifts.gift_date",
                 "day",
             )
-        }} > {{ pocore_active_days() }},
+        }} > {{ pocore_engine_config__active_days() }},
         false
-    ) as is_reactivation_gift  -- a win-back: more than 365 days (pocore_active_days) since the person's previous gift; first gifts never count
+    ) as is_reactivation_gift  -- a win-back: more than 365 days (pocore_engine_config__active_days) since the person's previous gift; first gifts never count
 from gifts
 left join {{ ref("pocore_input__gift_attributes") }} as gift_attributes
     on gift_attributes.gift_id = gifts.gift_id

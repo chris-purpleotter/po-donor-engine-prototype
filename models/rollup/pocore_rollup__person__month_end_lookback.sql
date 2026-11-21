@@ -12,21 +12,21 @@
   scale). An incremental/windowed version is a later optimization (SPEC §5).
 
   Gifts come ONLY from pocore_event__gift (the gift's columns + the engine's definitions),
-  never from pocore_input__gifts. Custom rollups (var `rollups`, macro pocore_rollups) are
+  never from pocore_input__gifts. Custom rollups (var `rollups`, macro pocore_client_config__rollups) are
   generated into the same pass over gifts as rollup_* columns.
 
   Vars: as_of (required), snapshot_lookback_months, recurring_active_days, rollups.
 #}
 {%- set lookback_months = var("snapshot_lookback_months") | int -%}
 {%- set recurring_active_days = var("recurring_active_days") | int -%}
-{%- set rollups = pocore_rollups() -%}
+{%- set rollups = pocore_client_config__rollups() -%}
 {%- set first_month_sql = dbt.dateadd(
     "month",
     -(lookback_months - 1),
-    dbt.date_trunc("month", pocore_as_of_date()),
+    dbt.date_trunc("month", pocore_client_config__as_of_date()),
 ) -%}
 {%- set after_last_month_sql = dbt.dateadd(
-    "month", 1, dbt.date_trunc("month", pocore_as_of_date())
+    "month", 1, dbt.date_trunc("month", pocore_client_config__as_of_date())
 ) -%}
 
 with
@@ -51,7 +51,7 @@ with
         from month_starts
         where
             cast({{ dbt.last_day("cast(date_month as date)", "month") }} as date)
-            <= {{ pocore_as_of_date() }}
+            <= {{ pocore_client_config__as_of_date() }}
 
     ),
 
@@ -193,10 +193,10 @@ with
                 end
             ) as gift_count_prior_year
 
-            {#- Custom rollups (var `rollups`): one column each, SQL from macro pocore_rollup_sql.
+            {#- Custom rollups (var `rollups`): one column each, SQL from macro pocore_sql__rollup.
                 (A Jinja comment, not SQL `--`: the comma below would otherwise land inside it.) #}
             {%- for r in rollups %},
-            {{ pocore_rollup_sql(r, "gifts.rollup_match_" ~ loop.index) }} as {{ r.name }}
+            {{ pocore_sql__rollup(r, "gifts.rollup_match_" ~ loop.index) }} as {{ r.name }}
             {%- endfor %}
 
         from donor_dates
@@ -255,7 +255,7 @@ with
             ) as is_new_donor,
             (
                 with_days.days_since_reactivation is not null
-                and with_days.days_since_reactivation <= {{ pocore_active_days() }}
+                and with_days.days_since_reactivation <= {{ pocore_engine_config__active_days() }}
             ) as is_reactivated
         from with_days
 
@@ -321,17 +321,17 @@ select
     flagged.days_since_reactivation,  -- days since the latest comeback (null: never)
     flagged.reactivations_lifetime,  -- comebacks after a 12+ month gap, to date
 
-    -- lifecycle stage (D6: first match wins). Labels: pocore_lifecycle_stages().
-    -- 365 = pocore_active_days(): active within 12 months, lapsed the 12 months after
+    -- lifecycle stage (D6: first match wins). Labels: pocore_engine_config__lifecycle_stages().
+    -- 365 = pocore_engine_config__active_days(): active within 12 months, lapsed the 12 months after
     -- that.
     case
         when flagged.is_recurring_active
         then 'sustainer'
         when flagged.is_new_donor
         then 'new'
-        when flagged.days_since_last_gift <= {{ pocore_active_days() }}
+        when flagged.days_since_last_gift <= {{ pocore_engine_config__active_days() }}
         then 'active'
-        when flagged.days_since_last_gift <= {{ 2 * pocore_active_days() }}
+        when flagged.days_since_last_gift <= {{ 2 * pocore_engine_config__active_days() }}
         then 'lapsed'
         when flagged.last_gift_date is not null
         then 'deep_lapsed'
@@ -340,7 +340,7 @@ select
     {#- Client-chosen donor attributes (SPEC §6.5): usable in segment rules and breakdowns.
         (A Jinja comment, not SQL `--`: the trimmed comma below would otherwise land inside it.) #}
     {%- for c in var("people_extra_columns") %}, pocore_entity__person.attr_{{ c }} {%- endfor %}
-    {#- Custom rollups (var `rollups`, macro pocore_rollups). #}
+    {#- Custom rollups (var `rollups`, macro pocore_client_config__rollups). #}
     {%- for r in rollups %}, flagged.{{ r.name }} {%- endfor %}
 
 from flagged

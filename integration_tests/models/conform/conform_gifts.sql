@@ -43,11 +43,11 @@ select
 
     -- Engine default + this client's rule. coalesce() matters: campaign_code is
     -- often null, and `null != 'X'` is NULL (not true), which would fail not_null.
-    {{ po_core.pocore_default_kpi_eligible('gift_category') }}
+    {{ po_core.pocore_engine_config__default_kpi_eligible('gift_category') }}
         and coalesce(campaign_code, '') != 'CAPITAL-2026'    as is_kpi_eligible,
 
     case
-        when not {{ po_core.pocore_default_kpi_eligible('gift_category') }}
+        when not {{ po_core.pocore_engine_config__default_kpi_eligible('gift_category') }}
             then 'category_' || gift_category
         when campaign_code = 'CAPITAL-2026'
             then 'capital_campaign'

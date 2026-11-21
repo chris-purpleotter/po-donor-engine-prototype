@@ -6,12 +6,9 @@
   Day one: available for gift-level analysis. Turning them into donor-level features
   ("gave to the spring appeal") is a later step.
 #}
-
-{%- set extra = var('gifts_extra_columns') -%}
+{%- set extra = var("gifts_extra_columns") -%}
 
 select
     cast(gift_id as {{ dbt.type_string() }}) as gift_id
-    {%- for c in extra %},
-    {{ c }} as attr_{{ c }}
-    {%- endfor %}
-from {{ pocore_input_model('gifts') }}
+    {%- for c in extra %}, {{ c }} as attr_{{ c }} {%- endfor %}
+from {{ pocore_client_config__input_model("gifts") }}

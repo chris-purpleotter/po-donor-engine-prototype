@@ -9,12 +9,9 @@
   D7 applies: current values only, so only attributes that DON'T change because of giving
   (board member, volunteer, wealth rating, ...). Never donor status / major-donor flags.
 #}
-
-{%- set extra = var('people_extra_columns') -%}
+{%- set extra = var("people_extra_columns") -%}
 
 select
     cast(person_id as {{ dbt.type_string() }}) as person_id
-    {%- for c in extra %},
-    {{ c }} as attr_{{ c }}
-    {%- endfor %}
-from {{ pocore_input_model('people') }}
+    {%- for c in extra %}, {{ c }} as attr_{{ c }} {%- endfor %}
+from {{ pocore_client_config__input_model("people") }}

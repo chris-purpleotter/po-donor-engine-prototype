@@ -4,13 +4,13 @@
   "If we tested something on this segment now, measured over this window, holding out
   this share: what could we detect, and when would we know?" Each row is one option to
   compare; nothing here should be added up.
-  Each segment is measured on its primary KPI (one of pocore_measures(); 'gave' unless set).
+  Each segment is measured on its primary KPI (one of pocore_engine_config__measures(); 'gave' unless set).
 #}
 
 {%- set lookback = var('baseline_lookback_months')[0] -%}
 
 with primary_kpis as (
-    {% for s in pocore_all_segments() %}
+    {% for s in pocore_client_config__all_segments() %}
     select '{{ s.id }}' as segment_id, '{{ s.primary_kpi }}' as primary_kpi
     union all
     {% endfor %}

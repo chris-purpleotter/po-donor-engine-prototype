@@ -3,7 +3,7 @@
   One row per person x anchor_date (anchors = the month-end snapshot dates). Experiment
   readouts will use the same windows anchored on the client's assigned_date, in their own
   model (DESIGN §9.6), not as extra rows here. Wide: one column per KPI x window. Windows are FIXED by the engine
-  (pocore_kpi_windows(): 30/90/180/365; retained only 90/180/365), so every client gets
+  (pocore_engine_config__kpi_windows(): 30/90/180/365; retained only 90/180/365), so every client gets
   the same columns.
 
   KPIs (per-donor; rate or capped mean — the KPI rule):
@@ -26,8 +26,8 @@
                     partial and must never be treated as final.
 #}
 
-{%- set windows = pocore_kpi_windows() -%}
-{%- set retained_windows = pocore_kpi_windows('retained') -%}
+{%- set windows = pocore_engine_config__kpi_windows() -%}
+{%- set retained_windows = pocore_engine_config__kpi_windows('retained') -%}
 {%- set max_window = windows | max -%}
 {%- set revenue_cap = var('revenue_cap') -%}
 {%- if revenue_cap is none -%}
@@ -93,12 +93,12 @@ select
     {%- for w in windows %}
     gave_{{ w }}d,
     started_monthly_{{ w }}d,
-    {{ pocore_clamp('revenue_uncapped_' ~ w ~ 'd', 0, revenue_cap) }}         as revenue_{{ w }}d,
+    {{ pocore_helpers__clamp('revenue_uncapped_' ~ w ~ 'd', 0, revenue_cap) }}         as revenue_{{ w }}d,
     revenue_uncapped_{{ w }}d,
     {%- if w in retained_windows %}
     retained_{{ w }}d,
     {%- endif %}
-    (cast({{ dbt.dateadd('day', w, 'anchor_date') }} as date) <= {{ pocore_as_of_date() }}) as is_complete_{{ w }}d
+    (cast({{ dbt.dateadd('day', w, 'anchor_date') }} as date) <= {{ pocore_client_config__as_of_date() }}) as is_complete_{{ w }}d
     {%- if not loop.last %},{% endif %}
     {%- endfor %}
 from outcomes

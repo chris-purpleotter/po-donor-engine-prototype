@@ -6,7 +6,7 @@
   Used by the pocore_suspected_unlinked_recurring test (warn) and pocore_admin__health.
 #}
 
-{% macro pocore_suspected_unlinked_recurring_sql(gifts_relation) %}
+{% macro pocore_sql__suspected_unlinked_recurring(gifts_relation) %}
 with gifts as (
 
     select gift_id, person_id, gift_date, amount, gift_type

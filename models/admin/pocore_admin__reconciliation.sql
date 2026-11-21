@@ -23,7 +23,7 @@ with gifts as (
 )
 
 select
-    {{ pocore_fiscal_year('gift_date') }}                          as giving_year,
+    {{ pocore_helpers__fiscal_year('gift_date') }}                          as giving_year,
     cast({{ dbt.date_trunc('month', 'gift_date') }} as date)     as gift_month,
     gift_category,
     person_type,
@@ -31,12 +31,12 @@ select
     exclusion_reason,
     gift_type,
     is_refund,
-    (gift_date > {{ pocore_as_of_date() }})                                as is_after_as_of,
+    (gift_date > {{ pocore_client_config__as_of_date() }})                                as is_after_as_of,
     count(*)                                                     as gifts,
     sum(amount)                                                  as net_amount
 from gifts
 group by
-    {{ pocore_fiscal_year('gift_date') }},
+    {{ pocore_helpers__fiscal_year('gift_date') }},
     cast({{ dbt.date_trunc('month', 'gift_date') }} as date),
     gift_category, person_type, is_kpi_eligible, exclusion_reason, gift_type, is_refund,
-    (gift_date > {{ pocore_as_of_date() }})
+    (gift_date > {{ pocore_client_config__as_of_date() }})

@@ -1,4 +1,4 @@
-{{ config(enabled=pocore_module_enabled('sustainers')) }}
+{{ config(enabled=pocore_client_config__module_enabled('sustainers')) }}
 
 {#
   pocore_cohort__person__sustainer_age — ONE ROW PER SUSTAINER x MONTH SINCE THEY STARTED.
@@ -33,7 +33,7 @@ with recurring_gifts as (
     where g.gift_type = 'recurring'
       and g.is_kpi_eligible
       and person.person_type = 'individual'
-      and g.gift_date <= {{ pocore_as_of_date() }}
+      and g.gift_date <= {{ pocore_client_config__as_of_date() }}
 
 ),
 
@@ -80,16 +80,16 @@ sustainer_months as (
 select
     sm.person_id,
     sm.start_month,
-    {{ pocore_fiscal_year('sm.start_month') }}                             as start_year,
+    {{ pocore_helpers__fiscal_year('sm.start_month') }}                             as start_year,
     sm.month_number,
     sm.month_start,
     coalesce(gm.payments, 0) > 0                                         as gave,
     coalesce(gm.amount, 0)                                               as amount,
     -- month k is over when the first day of the NEXT month is at most the day after as_of
     cast({{ dbt.dateadd('month', 1, 'sm.month_start') }} as date)
-        <= cast({{ dbt.dateadd('day', 1, pocore_as_of_date()) }} as date)          as is_observed
+        <= cast({{ dbt.dateadd('day', 1, pocore_client_config__as_of_date()) }} as date)          as is_observed
 from sustainer_months as sm
 left join gift_months as gm
     on  gm.person_id    = sm.person_id
     and gm.month_start = sm.month_start
-where sm.month_start <= {{ pocore_as_of_date() }}
+where sm.month_start <= {{ pocore_client_config__as_of_date() }}

@@ -1,2 +1,2 @@
 {#- The engine version the pack checks it is compatible with (keep in step with dbt_project.yml). -#}
-{% macro pocore_version() %}{{ return('0.4.1') }}{% endmacro %}
+{% macro pocore_engine_config__version() %}{{ return('0.5.0') }}{% endmacro %}

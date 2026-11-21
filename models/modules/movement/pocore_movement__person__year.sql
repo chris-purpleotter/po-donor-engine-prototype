@@ -22,7 +22,7 @@ with gifts as (
         on person.person_id = g.person_id
     where g.is_kpi_eligible
       and person.person_type = 'individual'
-      and g.gift_date <= {{ pocore_as_of_date() }}
+      and g.gift_date <= {{ pocore_client_config__as_of_date() }}
 
 ),
 
@@ -30,7 +30,7 @@ donor_years as (
 
     select
         person_id,
-        {{ pocore_fiscal_year('gift_date') }}            as giving_year,
+        {{ pocore_helpers__fiscal_year('gift_date') }}            as giving_year,
         count(case when not is_refund then 1 end)      as gifts,
         sum(amount)                                    as amount_given
     from gifts

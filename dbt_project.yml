@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.4.1'
+version: '0.5.0'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -72,7 +72,7 @@ vars:
     snapshot_lookback_months: 72      # month-end snapshots kept (history before still counts)
     recurring_active_days: 45         # heuristic window for is_recurring_active
     # KPIs (SPEC §4)
-    # KPI windows are FIXED by the engine (macro pocore_kpi_windows: 30/90/180/365, retained 90/180/365),
+    # KPI windows are FIXED by the engine (macro pocore_engine_config__kpi_windows: 30/90/180/365, retained 90/180/365),
     # not a var: every window is a column name, and columns must be the same for every client.
     revenue_cap: 1000                 # per-donor cap on revenue_Nd (outliers swamp means)
     # Segments (DESIGN §6.2, v0.3.0): everything is a segment. Custom segments go in `segments`
@@ -104,5 +104,5 @@ vars:
     # the longest of these two lists sets how many months of life get a row.
     sustainer_survival_months: [2, 6, 12, 24]     # "still giving in month N" columns
     sustainer_ltv_horizons_months: [12, 24, 60]   # cumulative revenue per starter through month N
-    # Supporter Insights (models/export): see macros/pocore_pack_settings.sql for every setting and its default.
+    # Supporter Insights (models/export): see macros/client_config/pocore_client_config__pack_settings.sql for every setting and its default.
     pack: {}

@@ -21,15 +21,15 @@
   Who the person is (region, channel, attr_*): join pocore_foundation__person on person_id.
 #}
 
-{%- set windows = pocore_kpi_windows() -%}
-{%- set retained_windows = pocore_kpi_windows('retained') -%}
+{%- set windows = pocore_engine_config__kpi_windows() -%}
+{%- set retained_windows = pocore_engine_config__kpi_windows('retained') -%}
 
 select
     s.person_id,
     s.snapshot_date                        as month_end_date,
 
-    -- state as of month_end_date (looking back): the shared column list (macros/pocore_snapshot_columns.sql)
-    {%- for c in pocore_snapshot_columns('state') %}
+    -- state as of month_end_date (looking back): the column list in macros/columns/pocore_columns__person_month_end.sql
+    {%- for c in pocore_columns__person_month_end() %}
     s.{{ c }},
     {%- endfor %}
 

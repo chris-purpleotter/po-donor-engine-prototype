@@ -10,7 +10,7 @@
 
   Everything is a segment. Three ways to define them, all in config:
     1. a segment     a named, versioned filter on the person's attributes and looking-back state
-                     (standard: pocore_standard_segments(); custom: the client's `segments` var)
+                     (standard: pocore_engine_config__standard_segments(); custom: the client's `segments` var)
     2. split_by      on a segment: ALSO one segment per value of that column
                      ("Lapsed — Web", "Lapsed — Face to Face" ...), segment_id = <id>__<value>.
                      Use low-cardinality columns only (channel, region, age group ...).
@@ -29,7 +29,7 @@
 #}
 
 {%- set custom = var('segments', []) -%}
-{%- set segments = pocore_all_segments() -%}
+{%- set segments = pocore_client_config__all_segments() -%}
 {%- set sets = var('segment_sets', []) -%}
 {%- set str = dbt.type_string() -%}
 
@@ -72,10 +72,10 @@ with snapshot as (
     select
         person.person_id,
         month_end.month_end_date as snapshot_date,
-        {%- for c in pocore_snapshot_columns('attributes') %}
+        {%- for c in pocore_columns__person() %}
         person.{{ c }},
         {%- endfor %}
-        {%- for c in pocore_snapshot_columns('state') %}
+        {%- for c in pocore_columns__person_month_end() %}
         month_end.{{ c }}{{ ',' if not loop.last }}
         {%- endfor %}
     from {{ ref('pocore_foundation__person__month_end') }} as month_end
@@ -92,7 +92,7 @@ population as (
 {% if not loop.first %}union all{% endif %}
 select
     '{{ s.id }}'                                                as segment_id,
-    {{ pocore_string_literal(s.label) }}                        as segment_label,
+    {{ pocore_helpers__string_literal(s.label) }}                        as segment_label,
     '{{ "standard" if s.id.startswith("std_") else "custom" }}' as segment_source,
     '{{ s.id }}'                                                as parent_segment_id,
     cast(null as {{ str }})                                     as split_by,
@@ -107,7 +107,7 @@ where ({{ s.rule }})
 union all
 select
     {{ dbt.concat(["'" ~ s.id ~ "__'", "lower(replace(" ~ value_sql ~ ", ' ', '_'))"]) }} as segment_id,
-    {{ dbt.concat([pocore_string_literal(s.label ~ ' — '), value_sql]) }}           as segment_label,
+    {{ dbt.concat([pocore_helpers__string_literal(s.label ~ ' — '), value_sql]) }}           as segment_label,
     '{{ "standard" if s.id.startswith("std_") else "custom" }}' as segment_source,
     '{{ s.id }}'                                                as parent_segment_id,
     '{{ s.split_by }}'                                          as split_by,
@@ -127,9 +127,9 @@ select
     -- numbered in priority order, so "2. Lapsed" reads as "lapsed, not already in 1."
     case chosen
         {%- for sid in st.segments %}
-        when '{{ sid }}' then {{ pocore_string_literal(loop.index ~ '. ' ~ by_id[sid].label) }}
+        when '{{ sid }}' then {{ pocore_helpers__string_literal(loop.index ~ '. ' ~ by_id[sid].label) }}
         {%- endfor %}
-        else {{ pocore_string_literal((st.segments | length + 1) ~ '. ' ~ st.get('remainder_label', 'Everyone else')) }}
+        else {{ pocore_helpers__string_literal((st.segments | length + 1) ~ '. ' ~ st.get('remainder_label', 'Everyone else')) }}
     end                                                         as segment_label,
     'set'                                                       as segment_source,
     case when chosen = 'remainder' then cast(null as {{ str }}) else chosen end as parent_segment_id,

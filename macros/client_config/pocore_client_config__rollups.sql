@@ -23,9 +23,9 @@
   Peeking is impossible: only gifts on or before each month-end are ever seen.
 
   Returns the validated list, each with its `name` added. The SQL for each one comes from
-  macro pocore_rollup_sql, used in pocore_rollup__person__month_end_lookback.
+  macro pocore_sql__rollup, used in pocore_rollup__person__month_end_lookback.
 #}
-{% macro pocore_rollups() %}
+{% macro pocore_client_config__rollups() %}
     {%- set sources = ['gift'] -%}
     {%- set aggs = ['count', 'sum', 'max', 'min', 'any', 'days_since'] -%}
     {%- set needs_column = ['sum', 'max', 'min'] -%}

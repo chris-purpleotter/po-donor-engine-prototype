@@ -1,4 +1,4 @@
-{{ config(enabled=pocore_module_enabled('pack')) }}
+{{ config(enabled=pocore_client_config__module_enabled('pack')) }}
 
 {#
   pocore_export__pack_dimensions — the "Build a population" dropdowns, in order.
@@ -7,7 +7,7 @@
   segment contains exactly the people someone saw in the pack.
 #}
 
-{%- set s = pocore_pack_settings() -%}
+{%- set s = pocore_client_config__pack_settings() -%}
 {%- set str = dbt.type_string() -%}
 
 {% for d in s.dimensions %}
@@ -22,16 +22,16 @@ union all
 {%- endif %}
 select
     '{{ d.name }}'                                                  as dimension,
-    cast({{ pocore_string_literal(d.label) }} as {{ str }})        as label,
+    cast({{ pocore_helpers__string_literal(d.label) }} as {{ str }})        as label,
     {{ dpos }}                                                      as dimension_position,
-    cast({{ pocore_string_literal(b.label) }} as {{ str }})        as band_label,
-    cast({{ pocore_string_literal(b.sql) }} as {{ str }})          as band_sql,
+    cast({{ pocore_helpers__string_literal(b.label) }} as {{ str }})        as band_label,
+    cast({{ pocore_helpers__string_literal(b.sql) }} as {{ str }})          as band_sql,
     {{ loop.index }}                                                as band_position
 {%- endfor %}
 {%- else %}
 select
     '{{ d.name }}'                                                  as dimension,
-    cast({{ pocore_string_literal(d.label) }} as {{ str }})        as label,
+    cast({{ pocore_helpers__string_literal(d.label) }} as {{ str }})        as label,
     {{ dpos }}                                                      as dimension_position,
     cast(null as {{ str }})                                         as band_label,
     cast(null as {{ str }})                                         as band_sql,

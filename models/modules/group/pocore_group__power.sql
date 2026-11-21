@@ -27,7 +27,7 @@
 
 {%- set alpha = var('alpha') | float -%}
 {%- set power = var('power') | float -%}
-{%- set z_total = pocore_z(1 - alpha / 2) + pocore_z(power) -%}
+{%- set z_total = pocore_helpers__z(1 - alpha / 2) + pocore_helpers__z(power) -%}
 {%- set holdouts = var('holdout_grid') -%}
 {%- set lookbacks = var('baseline_lookback_months') -%}
 {%- set recent_anchors = var('baseline_recent_anchors') | int -%}
@@ -115,8 +115,8 @@ seasonal as (
             - (sum(value * n) / sum(n)) * (sum(value * n) / sum(n)) as baseline_same_season_variance
     from ranked
     where cast({{ dbt.date_trunc('month', 'anchor_date') }} as date)
-          between cast({{ dbt.dateadd('month', -13, dbt.date_trunc('month', pocore_as_of_date())) }} as date)
-              and cast({{ dbt.dateadd('month', -11, dbt.date_trunc('month', pocore_as_of_date())) }} as date)
+          between cast({{ dbt.dateadd('month', -13, dbt.date_trunc('month', pocore_client_config__as_of_date())) }} as date)
+              and cast({{ dbt.dateadd('month', -11, dbt.date_trunc('month', pocore_client_config__as_of_date())) }} as date)
     group by {{ keys | join(', ') }}
 
 ),
@@ -180,7 +180,7 @@ sized as (
             false)                                                          as is_unstable,
         case when p.baseline_variance < 0 then 0 else p.baseline_variance end as baseline_variance,
         case when r.baseline_recent_variance < 0 then 0 else r.baseline_recent_variance end as baseline_recent_variance,
-        {{ pocore_clamp("coalesce(case when ss.baseline_same_season is not null
+        {{ pocore_helpers__clamp("coalesce(case when ss.baseline_same_season is not null
                                then ss.baseline_same_season_variance end,
                           r.baseline_recent_variance)", low=0) }}           as baseline_planning_variance,
         cast(e.n_eligible as {{ float_type }}) * h.holdout_pct / 100        as n_holdout,
@@ -232,5 +232,5 @@ select
     coalesce(
         baseline_planning > 0 and mde_abs_planning / baseline_planning <= {{ max_lift }},
         false)                                                              as is_testable,
-    cast({{ dbt.dateadd('day', 'outcome_window_days', pocore_as_of_date()) }} as date)        as readout_date_if_launched_now
+    cast({{ dbt.dateadd('day', 'outcome_window_days', pocore_client_config__as_of_date()) }} as date)        as readout_date_if_launched_now
 from with_mde

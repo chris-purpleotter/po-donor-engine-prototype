@@ -22,9 +22,9 @@
   (filter is_complete_90d first). Never average the rate columns.
 #}
 
-{%- set windows = pocore_kpi_windows() -%}
-{%- set retained_windows = pocore_kpi_windows('retained') -%}
-{%- set measure_ids = pocore_measure_ids() -%}
+{%- set windows = pocore_engine_config__kpi_windows() -%}
+{%- set retained_windows = pocore_engine_config__kpi_windows('retained') -%}
+{%- set measure_ids = pocore_engine_config__measure_ids() -%}
 
 with outcomes as (
 
@@ -59,7 +59,7 @@ with outcomes as (
 ),
 
 primary_choices as (
-    {{ pocore_primary_choices_sql() }}
+    {{ pocore_sql__primary_choices() }}
 ),
 
 -- the group's own measure at every window (picked from the columns above)
@@ -71,12 +71,12 @@ with_primary as (
         pc.primary_window_days
         {%- for w in windows %},
         case pc.primary_kpi
-            {%- for k in measure_ids if w in pocore_kpi_windows(k) %}
+            {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
             when '{{ k }}' then o.{{ k }}_rate_{{ w }}d
             {%- endfor %}
         end                                                                           as primary_rate_{{ w }}d,
         case pc.primary_kpi
-            {%- for k in measure_ids if w in pocore_kpi_windows(k) %}
+            {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
             when '{{ k }}' then o.{{ k }}_count_{{ w }}d
             {%- endfor %}
         end                                                                           as primary_count_{{ w }}d
