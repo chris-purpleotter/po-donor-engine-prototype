@@ -428,6 +428,15 @@ subfolder (schema `pocore`, tag `pocore_certified`): `5__modules/required/group/
 `5__modules/optional/cohort/certified/` (pocore__cohort__age, __age__breakdown). Analysts and BI use
 the foundation and certified tables only; module workings and earlier steps are internal.
 
+**Module settings (v0.7.0): one block per module, `module__<name>`.** A client writes only what they
+change; defaults live in `pocore_client_config__module` (the only place), which also rejects unknown
+settings. `module__group` (REQUIRED: segments, standard_splits, segment_sets, test-planning settings;
+no `enabled`). `module__movement`, `module__cohort` (survival_months, ltv_horizons_months) and
+`module__insights` (client_name, window_days, dimensions ...) are OPTIONAL: `enabled: false` switches one
+off and the rest of the block can stay. Required vs optional is the engine's business (folders,
+validation), never part of the client's config shape, so reclassifying a module (movement became
+optional in v0.7.0) doesn't move anyone's settings.
+
 **Input naming** (one pair per source): `input__<source>` is the contract (enforced columns and types);
 `input__<source>_attr` carries that source's client-chosen extra columns as `attr_*` (not enforced, so
 the contract stays strict). The settings follow the same source word: `<source>_model`,

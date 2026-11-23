@@ -7,7 +7,7 @@
   Each segment is measured on its primary KPI (one of pocore_engine_config__measures(); 'gave' unless set).
 #}
 
-{%- set lookback = var('baseline_lookback_months')[0] -%}
+{%- set lookback = pocore_client_config__module('group').baseline_lookback_months[0] -%}
 
 with
 

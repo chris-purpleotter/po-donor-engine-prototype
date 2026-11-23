@@ -1,10 +1,11 @@
 -- Certified tables must agree with each other and with foundation (DESIGN §6.2). Zero rows = pass.
---   1. pocore__year = sums of pocore__person__year, per fiscal year
+--   1. pocore__year = sums of pocore__person__year, per fiscal year (movement module)
 --   2. pocore_foundation__gift ties exactly to the gifts input (every gift once)
 --   3. pocore__segment people_in_segment = membership rows at the latest month-end
 --   4. pocore__cohort__age__breakdown adds up to pocore__cohort__age (cohort module)
 
 with year_check as (
+{%- if po_core.pocore_client_config__module_enabled('movement') %}
     select y.fiscal_year
     from {{ ref('pocore__year') }} as y
     left join (
@@ -21,6 +22,9 @@ with year_check as (
        or coalesce(p.new_donors, 0)   != y.new_donors
        or coalesce(p.lost_donors, 0)  != y.lost_donors
        or abs(coalesce(p.revenue, 0) - y.revenue) > 0.001
+{%- else %}
+    select cast(null as {{ dbt.type_int() }}) as fiscal_year where 1 = 0
+{%- endif %}
 ),
 
 gift_check as (

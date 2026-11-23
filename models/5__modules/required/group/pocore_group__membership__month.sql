@@ -28,9 +28,9 @@
     segment_set_id     set for set rows
 #}
 
-{%- set custom = var('segments', []) -%}
+{%- set custom = pocore_client_config__module('group').segments -%}
 {%- set segments = pocore_client_config__all_segments() -%}
-{%- set sets = var('segment_sets', []) -%}
+{%- set sets = pocore_client_config__module('group').segment_sets -%}
 {%- set str = dbt.type_string() -%}
 
 {#- Validate naming at compile time: fail loudly instead of producing odd segments. -#}

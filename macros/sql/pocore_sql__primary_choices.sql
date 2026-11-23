@@ -10,5 +10,5 @@
     union all
     {% endfor %}
     -- a set's remainder ("everyone else") has no parent segment: default window and KPI
-    select '__remainder__', {{ var('summary_default_window_days') }}, 'gave'
+    select '__remainder__', {{ pocore_client_config__module('group').summary_default_window_days }}, 'gave'
 {% endmacro %}

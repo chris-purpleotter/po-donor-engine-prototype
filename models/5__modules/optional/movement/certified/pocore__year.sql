@@ -1,3 +1,4 @@
+{{ config(enabled=pocore_client_config__module_enabled('movement')) }}
 {#
   pocore__year — ONE ROW PER FISCAL YEAR (the whole file): the donor movement funnel.
 

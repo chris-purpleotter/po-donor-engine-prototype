@@ -1,3 +1,4 @@
+{{ config(enabled=pocore_client_config__module_enabled('movement')) }}
 {#
   pocore__person__year — ONE ROW PER PERSON x FISCAL YEAR (the donor JOURNEY), from the fiscal year the person
   first appears (created or first gift, whichever is earlier) to the current fiscal year.

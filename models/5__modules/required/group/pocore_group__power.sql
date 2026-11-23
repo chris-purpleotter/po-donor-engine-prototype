@@ -25,14 +25,14 @@
                        come back inconclusive
 #}
 
-{%- set alpha = var('alpha') | float -%}
-{%- set power = var('power') | float -%}
+{%- set alpha = pocore_client_config__module('group').alpha | float -%}
+{%- set power = pocore_client_config__module('group').power | float -%}
 {%- set z_total = pocore_helpers__z(1 - alpha / 2) + pocore_helpers__z(power) -%}
-{%- set holdouts = var('holdout_grid') -%}
-{%- set lookbacks = var('baseline_lookback_months') -%}
-{%- set recent_anchors = var('baseline_recent_anchors') | int -%}
-{%- set instability_threshold = var('baseline_instability_threshold') | float -%}
-{%- set max_lift = var('max_plausible_relative_lift') | float -%}
+{%- set holdouts = pocore_client_config__module('group').holdout_grid -%}
+{%- set lookbacks = pocore_client_config__module('group').baseline_lookback_months -%}
+{%- set recent_anchors = pocore_client_config__module('group').baseline_recent_anchors | int -%}
+{%- set instability_threshold = pocore_client_config__module('group').baseline_instability_threshold | float -%}
+{%- set max_lift = pocore_client_config__module('group').max_plausible_relative_lift | float -%}
 {%- set float_type = dbt.type_float() -%}
 {#- The keys that identify one baseline series (a segment, or a slice of one). -#}
 {%- set keys = ['segment_id', 'kpi_id', 'outcome_window_days'] -%}

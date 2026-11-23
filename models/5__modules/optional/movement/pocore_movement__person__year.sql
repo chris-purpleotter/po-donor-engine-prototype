@@ -1,3 +1,4 @@
+{{ config(enabled=pocore_client_config__module_enabled('movement')) }}
 {#
   pocore_movement__person__year — each donor's status in each (fiscal) year they gave.
   One row per donor x giving_year (years with at least one positive KPI-eligible gift).
