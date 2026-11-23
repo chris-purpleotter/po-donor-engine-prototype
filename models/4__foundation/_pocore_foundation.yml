@@ -42,6 +42,8 @@ models:
               arguments: {to: ref('pocore_foundation__person'), field: person_id}
       - name: is_qualifying
         description: "Counts as 'gave' (KPI gave): eligible, not a refund, and one-time or the first payment of a recurring schedule (a new sign-up). Routine recurring payments are false."
+      - name: is_first_recurring_payment
+        description: "The first eligible payment we can see in a recurring schedule: a new monthly sign-up (measure started_monthly)."
       - name: is_recurring_payment
         description: "Eligible, non-refund recurring payment (the basis of sustainer status and the retained KPI)."
       - name: gift_number

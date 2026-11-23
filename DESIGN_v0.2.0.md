@@ -428,6 +428,10 @@ subfolder (schema `pocore`, tag `pocore_certified`): `5__modules/required/group/
 `5__modules/optional/cohort/certified/` (pocore__cohort__age, __age__breakdown). Analysts and BI use
 the foundation and certified tables only; module workings and earlier steps are internal.
 
+**v0.7.2:** `foundation__gift` gains `is_first_recurring_payment` (a new monthly sign-up); new export
+`pocore_export__insights_month` (one row per calendar month, the last 36: new donors, win-backs, monthly
+sign-ups, gifts, donors, net giving) for the report's "What happened" tab. Additive, no breaking change.
+
 **Module settings (v0.7.0): one block per module, `module__<name>`.** A client writes only what they
 change; defaults live in `pocore_client_config__module` (the only place), which also rejects unknown
 settings. `module__group` (REQUIRED: segments, standard_splits, segment_sets, test-planning settings;

@@ -43,3 +43,13 @@ models:
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['kpi_id']}
+
+  - name: pocore_export__insights_month
+    description: >
+      One row per calendar month (the last 36 up to as_of): new donors, win-backs, monthly sign-ups,
+      gifts, donors and net giving across the organisation (individuals, eligible gifts). Events, so
+      months add up, except donors (distinct people within the month).
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['month_start_date']}
+
