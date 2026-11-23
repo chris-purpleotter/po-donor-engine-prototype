@@ -58,6 +58,7 @@ select
     -- engine definitions
     pocore_event__gift.is_qualifying,
     pocore_event__gift.is_recurring_payment,
+    pocore_event__gift.is_first_recurring_payment,
     pocore_event__gift.gift_number,
     pocore_event__gift.is_first_gift,
     pocore_event__gift.is_reactivation_gift,
