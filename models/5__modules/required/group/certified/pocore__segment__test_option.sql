@@ -9,7 +9,11 @@
 
 {%- set lookback = var('baseline_lookback_months')[0] -%}
 
-with primary_kpis as (
+with
+
+pocore_group__power as (select * from {{ ref('pocore_group__power') }}),
+
+primary_kpis as (
     {% for s in pocore_client_config__all_segments() %}
     select '{{ s.id }}' as segment_id, '{{ s.primary_kpi }}' as primary_kpi
     union all
@@ -19,31 +23,31 @@ with primary_kpis as (
 )
 
 select
-    p.segment_id,
-    p.segment_label,
-    p.segment_source,
-    p.parent_segment_id,
-    p.split_by,
-    p.split_value,
-    p.segment_set_id,
-    p.latest_anchor_date                          as month_end_date,
-    p.kpi_id                                      as primary_kpi,
-    p.outcome_window_days,
-    p.holdout_pct,
-    p.n_eligible                                  as people_in_segment,
-    round(p.n_holdout)                            as people_held_out,
-    round(p.n_treatment)                          as people_treated,
-    p.baseline_recent                             as rate_recent,
-    p.baseline_value                              as rate_typical,
-    p.baseline_same_season                        as rate_same_season,
-    p.planning_basis,
-    p.is_unstable,
-    p.mde_abs_planning                            as detectable_lift,
-    p.mde_relative_planning                       as detectable_lift_relative,
-    p.is_testable,
-    p.readout_date_if_launched_now                as readable_by
-from {{ ref('pocore_group__power') }} as p
-inner join primary_kpis as k
-    on  k.segment_id  = coalesce(p.parent_segment_id, '__remainder__')
-    and k.primary_kpi = p.kpi_id
-where p.baseline_lookback_months = {{ lookback }}
+    pocore_group__power.segment_id,
+    pocore_group__power.segment_label,
+    pocore_group__power.segment_source,
+    pocore_group__power.parent_segment_id,
+    pocore_group__power.split_by,
+    pocore_group__power.split_value,
+    pocore_group__power.segment_set_id,
+    pocore_group__power.latest_anchor_date                          as month_end_date,
+    pocore_group__power.kpi_id                                      as primary_kpi,
+    pocore_group__power.outcome_window_days,
+    pocore_group__power.holdout_pct,
+    pocore_group__power.n_eligible                                  as people_in_segment,
+    round(pocore_group__power.n_holdout)                            as people_held_out,
+    round(pocore_group__power.n_treatment)                          as people_treated,
+    pocore_group__power.baseline_recent                             as rate_recent,
+    pocore_group__power.baseline_value                              as rate_typical,
+    pocore_group__power.baseline_same_season                        as rate_same_season,
+    pocore_group__power.planning_basis,
+    pocore_group__power.is_unstable,
+    pocore_group__power.mde_abs_planning                            as detectable_lift,
+    pocore_group__power.mde_relative_planning                       as detectable_lift_relative,
+    pocore_group__power.is_testable,
+    pocore_group__power.readout_date_if_launched_now                as readable_by
+from pocore_group__power
+inner join primary_kpis
+    on  primary_kpis.segment_id  = coalesce(pocore_group__power.parent_segment_id, '__remainder__')
+    and primary_kpis.primary_kpi = pocore_group__power.kpi_id
+where pocore_group__power.baseline_lookback_months = {{ lookback }}

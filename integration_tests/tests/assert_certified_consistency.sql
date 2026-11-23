@@ -2,7 +2,7 @@
 --   1. pocore__year = sums of pocore__person__year, per fiscal year
 --   2. pocore_foundation__gift ties exactly to the gifts input (every gift once)
 --   3. pocore__segment people_in_segment = membership rows at the latest month-end
---   4. pocore__cohort__age__breakdown adds up to pocore__cohort__age (sustainers module)
+--   4. pocore__cohort__age__breakdown adds up to pocore__cohort__age (cohort module)
 
 with year_check as (
     select y.fiscal_year
@@ -42,7 +42,7 @@ segment_check as (
     where coalesce(m.n, 0) != s.people_in_segment
 )
 
-{%- if po_core.pocore_client_config__module_enabled('sustainers') %},
+{%- if po_core.pocore_client_config__module_enabled('cohort') %},
 
 cohort_check as (
     select c.cohort_year, c.age_months
@@ -68,6 +68,6 @@ union all
 select 'year vs person_year' as check_name, cast(fiscal_year as {{ dbt.type_string() }}) as detail from year_check
 union all select 'foundation gift vs input', null from gift_check
 union all select 'segment size vs membership', segment_id from segment_check
-{%- if po_core.pocore_client_config__module_enabled('sustainers') %}
+{%- if po_core.pocore_client_config__module_enabled('cohort') %}
 union all select 'cohort breakdown vs cohort', cast(cohort_year as {{ dbt.type_string() }}) from cohort_check
 {%- endif %}

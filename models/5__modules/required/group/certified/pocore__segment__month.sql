@@ -26,7 +26,13 @@
 {%- set retained_windows = pocore_engine_config__kpi_windows('retained') -%}
 {%- set measure_ids = pocore_engine_config__measure_ids() -%}
 
-with outcomes as (
+with
+
+pocore_group__baselines__month as (select * from {{ ref('pocore_group__baselines__month') }}),
+
+pocore_group__flows__month as (select * from {{ ref('pocore_group__flows__month') }}),
+
+outcomes as (
 
     select
         segment_id,
@@ -52,7 +58,7 @@ with outcomes as (
         max(case when kpi_id = 'gave' and outcome_window_days = {{ w }}
                  then case when is_window_complete then 1 else 0 end end) = 1               as is_complete_{{ w }}d
         {%- endfor %}
-    from {{ ref('pocore_group__baselines__month') }}
+    from pocore_group__baselines__month
     group by segment_id, segment_label, segment_source, parent_segment_id, split_by, split_value,
              segment_set_id, anchor_date
 
@@ -66,74 +72,74 @@ primary_choices as (
 with_primary as (
 
     select
-        o.*,
-        pc.primary_kpi,
-        pc.primary_window_days
+        outcomes.*,
+        primary_choices.primary_kpi,
+        primary_choices.primary_window_days
         {%- for w in windows %},
-        case pc.primary_kpi
+        case primary_choices.primary_kpi
             {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
-            when '{{ k }}' then o.{{ k }}_rate_{{ w }}d
+            when '{{ k }}' then outcomes.{{ k }}_rate_{{ w }}d
             {%- endfor %}
         end                                                                           as primary_rate_{{ w }}d,
-        case pc.primary_kpi
+        case primary_choices.primary_kpi
             {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
-            when '{{ k }}' then o.{{ k }}_count_{{ w }}d
+            when '{{ k }}' then outcomes.{{ k }}_count_{{ w }}d
             {%- endfor %}
         end                                                                           as primary_count_{{ w }}d
         {%- endfor %}
-    from outcomes as o
-    left join primary_choices as pc
-        on pc.segment_id = coalesce(o.parent_segment_id, '__remainder__')
+    from outcomes
+    left join primary_choices
+        on primary_choices.segment_id = coalesce(outcomes.parent_segment_id, '__remainder__')
 
 )
 
 select
-    o.segment_id,
-    o.segment_label,
-    o.segment_source,
-    o.parent_segment_id,
-    o.split_by,
-    o.split_value,
-    o.segment_set_id,
-    o.snapshot_date                                                                   as month_end_date,
-    o.people_in_segment,
-    f.donors_entering                                                                 as people_entering,
-    f.donors_leaving                                                                  as people_leaving,
-    o.primary_kpi,
-    o.primary_window_days,
-    case o.primary_window_days
+    with_primary.segment_id,
+    with_primary.segment_label,
+    with_primary.segment_source,
+    with_primary.parent_segment_id,
+    with_primary.split_by,
+    with_primary.split_value,
+    with_primary.segment_set_id,
+    with_primary.snapshot_date                                                                   as month_end_date,
+    with_primary.people_in_segment,
+    pocore_group__flows__month.donors_entering                                                                 as people_entering,
+    pocore_group__flows__month.donors_leaving                                                                  as people_leaving,
+    with_primary.primary_kpi,
+    with_primary.primary_window_days,
+    case with_primary.primary_window_days
         {%- for w in windows %}
-        when {{ w }} then o.primary_rate_{{ w }}d
+        when {{ w }} then with_primary.primary_rate_{{ w }}d
         {%- endfor %}
     end                                                                               as primary_rate,
-    case o.primary_window_days
+    case with_primary.primary_window_days
         {%- for w in windows %}
-        when {{ w }} then o.primary_count_{{ w }}d
+        when {{ w }} then with_primary.primary_count_{{ w }}d
         {%- endfor %}
     end                                                                               as primary_count,
-    case o.primary_window_days
+    case with_primary.primary_window_days
         {%- for w in windows %}
-        when {{ w }} then o.is_complete_{{ w }}d
+        when {{ w }} then with_primary.is_complete_{{ w }}d
         {%- endfor %}
     end                                                                               as is_primary_complete
     {%- for w in windows %},
-    o.primary_rate_{{ w }}d,
-    o.primary_count_{{ w }}d
+    with_primary.primary_rate_{{ w }}d,
+    with_primary.primary_count_{{ w }}d
     {%- endfor %}
     {%- for w in windows %},
-    o.gave_rate_{{ w }}d,
+    with_primary.gave_rate_{{ w }}d,
     {%- if w in retained_windows %}
-    o.retained_rate_{{ w }}d,
-    o.retained_count_{{ w }}d,
+    with_primary.retained_rate_{{ w }}d,
+    with_primary.retained_count_{{ w }}d,
     {%- endif %}
-    o.gave_count_{{ w }}d,
-    o.started_monthly_rate_{{ w }}d,
-    o.started_monthly_count_{{ w }}d,
-    o.revenue_per_person_{{ w }}d,
-    o.revenue_per_person_uncapped_{{ w }}d,
-    o.is_complete_{{ w }}d
+    with_primary.gave_count_{{ w }}d,
+    with_primary.started_monthly_rate_{{ w }}d,
+    with_primary.started_monthly_count_{{ w }}d,
+    with_primary.revenue_per_person_{{ w }}d,
+    with_primary.revenue_per_person_uncapped_{{ w }}d,
+    with_primary.is_complete_{{ w }}d
     {%- endfor %}
-from with_primary as o
-left join {{ ref('pocore_group__flows__month') }} as f
-    on  f.segment_id    = o.segment_id
-    and f.snapshot_date = o.snapshot_date
+from with_primary
+left join pocore_group__flows__month
+    on  pocore_group__flows__month.segment_id    = with_primary.segment_id
+    and pocore_group__flows__month.snapshot_date = with_primary.snapshot_date

@@ -28,29 +28,35 @@
 {%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
 {%- set float_type = dbt.type_float() -%}
 
-with joined as (
+with
+
+pocore_group__membership__month as (select * from {{ ref('pocore_group__membership__month') }}),
+
+pocore_foundation__person__month_end as (select * from {{ ref('pocore_foundation__person__month_end') }}),
+
+joined as (
 
     -- Built from FOUNDATION: who was in each segment at each month-end, joined to what they
     -- did afterwards (outcomes).
     select
-        m.segment_id,
+        pocore_group__membership__month.segment_id,
         {%- for c in desc_cols %}
-        m.{{ c }},
+        pocore_group__membership__month.{{ c }},
         {%- endfor %}
-        p.person_id,
-        p.month_end_date as anchor_date,
+        pocore_foundation__person__month_end.person_id,
+        pocore_foundation__person__month_end.month_end_date as anchor_date,
         {%- for w in windows %}
         {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
-        p.{{ k }}_{{ w }}d,
+        pocore_foundation__person__month_end.{{ k }}_{{ w }}d,
         {%- endfor %}
-        p.revenue_{{ w }}d,
-        p.revenue_uncapped_{{ w }}d,
-        p.is_complete_{{ w }}d{{ ',' if not loop.last }}
+        pocore_foundation__person__month_end.revenue_{{ w }}d,
+        pocore_foundation__person__month_end.revenue_uncapped_{{ w }}d,
+        pocore_foundation__person__month_end.is_complete_{{ w }}d{{ ',' if not loop.last }}
         {%- endfor %}
-    from {{ ref('pocore_group__membership__month') }} as m
-    inner join {{ ref('pocore_foundation__person__month_end') }} as p
-        on  p.person_id      = m.person_id
-        and p.month_end_date = m.month_end_date
+    from pocore_group__membership__month
+    inner join pocore_foundation__person__month_end
+        on  pocore_foundation__person__month_end.person_id      = pocore_group__membership__month.person_id
+        and pocore_foundation__person__month_end.month_end_date = pocore_group__membership__month.month_end_date
 
 ),
 

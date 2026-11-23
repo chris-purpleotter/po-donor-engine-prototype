@@ -1,12 +1,12 @@
-{{ config(enabled=pocore_client_config__module_enabled('pack')) }}
+{{ config(enabled=pocore_client_config__module_enabled('insights')) }}
 
 {#
-  pocore_export__pack_settings — ONE ROW PER SETTING (key, value) for Supporter Insights:
-  the client's pack var (with defaults), plus the engine version and as_of, so the pack tool
+  pocore_export__insights_settings — ONE ROW PER SETTING (key, value) for Supporter Insights:
+  the client's insights var (with defaults), plus the engine version and as_of, so the report tool
   reads everything from the warehouse and needs no config of its own.
 #}
 
-{%- set s = pocore_client_config__pack_settings() -%}
+{%- set s = pocore_client_config__insights_settings() -%}
 {%- set rows = [
     ('client_name', s.client_name),
     ('window_days', s.window_days),

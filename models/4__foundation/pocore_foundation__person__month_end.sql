@@ -24,27 +24,33 @@
 {%- set windows = pocore_engine_config__kpi_windows() -%}
 {%- set retained_windows = pocore_engine_config__kpi_windows('retained') -%}
 
+with
+
+pocore_rollup__person__month_end_lookback as (select * from {{ ref('pocore_rollup__person__month_end_lookback') }}),
+
+pocore_rollup__person__month_end_lookahead as (select * from {{ ref('pocore_rollup__person__month_end_lookahead') }})
+
 select
-    s.person_id,
-    s.snapshot_date                        as month_end_date,
+    pocore_rollup__person__month_end_lookback.person_id,
+    pocore_rollup__person__month_end_lookback.snapshot_date                        as month_end_date,
 
     -- state as of month_end_date (looking back): the column list in macros/columns/pocore_columns__person_month_end.sql
     {%- for c in pocore_columns__person_month_end() %}
-    s.{{ c }},
+    pocore_rollup__person__month_end_lookback.{{ c }},
     {%- endfor %}
 
     -- outcomes after month_end_date
     {%- for w in windows %}
-    o.gave_{{ w }}d,
-    o.started_monthly_{{ w }}d,
-    o.revenue_{{ w }}d,
-    o.revenue_uncapped_{{ w }}d,
+    pocore_rollup__person__month_end_lookahead.gave_{{ w }}d,
+    pocore_rollup__person__month_end_lookahead.started_monthly_{{ w }}d,
+    pocore_rollup__person__month_end_lookahead.revenue_{{ w }}d,
+    pocore_rollup__person__month_end_lookahead.revenue_uncapped_{{ w }}d,
     {%- if w in retained_windows %}
-    o.retained_{{ w }}d,
+    pocore_rollup__person__month_end_lookahead.retained_{{ w }}d,
     {%- endif %}
-    o.is_complete_{{ w }}d{{ ',' if not loop.last }}
+    pocore_rollup__person__month_end_lookahead.is_complete_{{ w }}d{{ ',' if not loop.last }}
     {%- endfor %}
-from {{ ref('pocore_rollup__person__month_end_lookback') }} as s
-inner join {{ ref('pocore_rollup__person__month_end_lookahead') }} as o
-    on  o.person_id   = s.person_id
-    and o.anchor_date = s.snapshot_date
+from pocore_rollup__person__month_end_lookback
+inner join pocore_rollup__person__month_end_lookahead
+    on  pocore_rollup__person__month_end_lookahead.person_id   = pocore_rollup__person__month_end_lookback.person_id
+    and pocore_rollup__person__month_end_lookahead.anchor_date = pocore_rollup__person__month_end_lookback.snapshot_date

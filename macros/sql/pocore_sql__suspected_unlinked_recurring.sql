@@ -19,15 +19,15 @@ with gifts as (
 partial_break as (
 
     select distinct
-        o.gift_id, o.person_id, o.gift_date, o.amount,
+        one_time.gift_id, one_time.person_id, one_time.gift_date, one_time.amount,
         'partial' as pattern
-    from gifts as o
-    inner join gifts as r
-        on  r.person_id  = o.person_id
-        and r.amount    = o.amount
-        and r.gift_type = 'recurring'
-        and abs({{ dbt.datediff('r.gift_date', 'o.gift_date', 'day') }}) between 25 and 35
-    where o.gift_type = 'one_time'
+    from gifts as one_time
+    inner join gifts as recurring
+        on  recurring.person_id  = one_time.person_id
+        and recurring.amount    = one_time.amount
+        and recurring.gift_type = 'recurring'
+        and abs({{ dbt.datediff('recurring.gift_date', 'one_time.gift_date', 'day') }}) between 25 and 35
+    where one_time.gift_type = 'one_time'
 
 ),
 
@@ -57,10 +57,10 @@ monthly_runs as (
 
 full_break as (
 
-    select g.gift_id, g.person_id, g.gift_date, g.amount, 'full' as pattern
-    from one_time_gaps as g
-    inner join monthly_runs as m
-        on m.person_id = g.person_id and m.amount = g.amount
+    select one_time_gaps.gift_id, one_time_gaps.person_id, one_time_gaps.gift_date, one_time_gaps.amount, 'full' as pattern
+    from one_time_gaps
+    inner join monthly_runs
+        on monthly_runs.person_id = one_time_gaps.person_id and monthly_runs.amount = one_time_gaps.amount
 
 )
 

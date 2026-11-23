@@ -3,9 +3,8 @@
 -- v0.4.0: the foundation is a STAR. Zero rows = pass.
 -- 1. The person DIMENSION holds who the person is, not state; the month_end SNAPSHOT holds state,
 --    not who the person is (no copied attributes).
--- 2. The SPAN facts add up: month spans, year spans and the gift fact give the same totals.
--- 3. Lineage: every gift and person has its source record; the default crosswalk has one
---    identity per person with lineage.
+-- 2. The CALENDAR covers every fact's date and has exactly one latest month-end.
+-- 3. Lineage: every gift and person has its source record.
 
 {%- set person_cols = [] %}
 {%- set month_end_cols = [] %}
@@ -29,27 +28,21 @@ union all
 select 'shape', 'columns missing: expected lifecycle_stage on month_end and region on person'
 where {{ 1 if ('lifecycle_stage' in month_end_cols and 'region' in person_cols) else 0 }} = 0
 
--- 2. spans tie to the gift fact
+-- 2. the calendar covers every fact's date, with one latest month-end
 union all
-select 'spans', 'month spans, year spans and gifts disagree on eligible totals'
-from (
-    select
-        (select sum(amount) from {{ ref('pocore_foundation__person__month_span') }}) as month_amount,
-        (select sum(amount) from {{ ref('pocore_foundation__person__year_span') }})  as year_amount,
-        (select sum(amount) from {{ ref('pocore_foundation__gift') }} where is_kpi_eligible) as gift_amount,
-        (select sum(gifts) from {{ ref('pocore_foundation__person__month_span') }}) as month_gifts,
-        (select count(*) from {{ ref('pocore_foundation__gift') }} where is_kpi_eligible and not is_refund) as gift_count
-) as totals
-where month_amount is distinct from gift_amount
-   or year_amount is distinct from gift_amount
-   or month_gifts is distinct from gift_count
+select 'calendar', 'a gift date or month-end is missing from the calendar'
+where exists (select 1 from {{ ref('pocore_foundation__gift') }} as gift
+              left join {{ ref('pocore_foundation__date') }} as calendar on calendar.date_day = gift.gift_date
+              where calendar.date_day is null and gift.gift_date <= (select max(date_day) from {{ ref('pocore_foundation__date') }}))
+   or exists (select 1 from {{ ref('pocore_foundation__person__month_end') }} as month_end
+              left join {{ ref('pocore_foundation__date') }} as calendar on calendar.date_day = month_end.month_end_date
+              where calendar.date_day is null)
+union all
+select 'calendar', 'not exactly one latest month-end'
+where (select count(*) from {{ ref('pocore_foundation__date') }} where is_latest_month_end) <> 1
 
 -- 3. lineage
 union all
 select 'lineage', 'gift or person without source_record_id'
 where exists (select 1 from {{ ref('pocore_foundation__gift') }} where source_record_id is null)
    or exists (select 1 from {{ ref('pocore_foundation__person') }} where source_record_id is null)
-union all
-select 'lineage', 'default crosswalk is not one identity per person'
-where (select count(*) from {{ ref('pocore_foundation__person_identity') }})
-   <> (select count(*) from {{ ref('pocore_foundation__person') }} where source_record_id is not null)

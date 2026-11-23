@@ -1,0 +1,119 @@
+version: 2
+
+# MODULE group: certified outputs.
+# CERTIFIED = a module's PUBLIC outputs: reliable and OPINIONATED, for business users and dashboards
+# (schema `pocore`, tag pocore_certified). Built from this module's workings, which read only the
+# foundation. Rules: the table name states the grain (at most three levels); keys are tested unique;
+# standard columns are the same for every client; rates come with their numerators and denominators.
+
+models:
+  - name: pocore__segment
+    description: >
+      One row per segment, as of the latest month-end. People in the segment now; how they normally
+      do on the segment's primary KPI over its primary window (rate_recent = today's normal,
+      rate_typical = pooled over the last 12 months, rate_same_season = the same months last year);
+      whether a test is worth running (detectable_lift, is_testable, readable_by at the default
+      holdout); and what improvement is worth (value_per_point: each +1 point on the KPI;
+      value_of_detectable_lift: the smallest provable lift). Includes split segments (split_by /
+      split_value: one per value of an attribute, e.g. "Lapsed — Web") and set segments
+      (segment_set_id: non-overlapping populations). Segments overlap in general (a split overlaps
+      its parent; custom ones overlap standard ones): only within ONE segment_set_id, or ONE
+      parent's split, do people_in_segment add up.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['segment_id']}
+    columns: &segment_columns
+      - name: parent_segment_id
+        description: "The configured segment this row comes from (its KPI and window are used). Equals segment_id for configured segments; null for a set's remainder."
+      - name: split_by
+        description: "For split segments: the attribute split on (e.g. acquisition_channel). Null otherwise."
+      - name: split_value
+        description: "For split segments: the attribute's value. Rows with the same parent_segment_id and split_by add up to the parent."
+      - name: segment_set_id
+        description: "For set segments: the set. A set's segments don't overlap (each person is in the first one they match), so their people add up."
+      - name: month_end_date
+        description: "The month-end these numbers describe (the latest snapshot)."
+      - name: people_in_segment
+        description: "People in the segment at month_end_date."
+      - name: outcome_window_days
+        description: "The segment's primary window (new 90, lapsed 180, others 365)."
+      - name: primary_kpi
+        description: "What success means for this segment, one of the engine's measures (macro pocore_engine_config__measures): 'gave' (a qualifying gift within the window), 'started_monthly' (signed up to a new monthly plan within it) or 'retained' (still an active sustainer at the end of it; used for sustainers)."
+      - name: rate_recent
+        description: "Share of the segment achieving the primary KPI within the window, over the most recent complete months: today's normal."
+      - name: rate_typical
+        description: "The same, pooled over the last 12 complete months."
+      - name: rate_same_season
+        description: "The same, for the same months last year (snapshots 11-13 months ago). A test launched now runs through the same season, so this is the planning baseline. Null with too little history."
+      - name: planning_basis
+        description: "Which rate the detectable lift uses: 'same_season', or 'recent' when there isn't a year of history."
+      - name: is_unstable
+        description: "Recent and 12-month rates differ a lot, or the months swing widely."
+      - name: revenue_per_person_recent
+        description: "Average capped revenue per person in the segment over the window, recent months."
+      - name: detectable_lift
+        description: "Smallest lift (as a fraction) a test with holdout_pct held out could reliably detect, vs the planning baseline (planning_basis)."
+      - name: is_testable
+        description: "Whether a test here could realistically give a clear answer (detectable lift <= +50% relative)."
+      - name: revenue_per_extra_donor
+        description: "What one extra success has been worth: capped window revenue among people who achieved the KPI minus among those who didn't. Observational."
+      - name: value_per_point
+        description: "What each +1 percentage point on the KPI is worth over the window: people x 0.01 x revenue_per_extra_donor. The headline for 'where is the money'. Rough sizing, not a forecast."
+      - name: extra_donors_at_detectable_lift
+        description: "Extra people achieving the KPI if the rate rose by exactly the detectable lift."
+      - name: value_of_detectable_lift
+        description: "Value of the smallest provable lift (extra_donors_at_detectable_lift x revenue_per_extra_donor). A floor for test planning; shrinks with bigger holdouts, so don't rank segments by it."
+
+  - name: pocore__segment__month
+    description: >
+      One row per segment x month-end (whole segments). people_in_segment is the count at that
+      month-end (don't add it across months). gave_rate_<N>d / retained_rate_<N>d (90+ days) /
+      revenue_per_person_<N>d describe what those people did in the N days after; drop rows where
+      is_complete_<N>d is false. To pool over several months use the counts:
+      sum(gave_count_<N>d) / sum(people_in_segment), never an average of the rates.
+      For the group's OWN measure use the primary_* columns (no need to pick a measure column):
+      primary_rate / primary_count / is_primary_complete at the group's window, and
+      primary_rate_<N>d / primary_count_<N>d at every window.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['segment_id', 'month_end_date']}
+    columns:
+      - name: people_in_segment
+        description: "People in the segment at that month-end (point in time: don't add across months)."
+      - name: people_entering
+        description: "People in the segment at this month-end who weren't at the previous one (a monthly flow: fine to add across months). Null for the first month."
+      - name: people_leaving
+        description: "People in the segment at the previous month-end who aren't at this one (monthly flow). Null for the first month."
+      - name: primary_kpi
+        description: "The group's measure (as pocore__segment.primary_kpi): what the primary_* columns count."
+        data_tests: [not_null]
+      - name: primary_window_days
+        description: "The group's headline window in days (as pocore__segment.outcome_window_days)."
+      - name: primary_rate
+        description: "Share of the group who reached its measure within its window, from this month-end. Use only where is_primary_complete."
+      - name: primary_count
+        description: "How many people that is (the numerator: pool months with sum(primary_count) / sum(people_in_segment))."
+      - name: is_primary_complete
+        description: "True when the group's window has fully passed for this month-end."
+      - name: primary_count_90d
+        description: "The group's measure within 90 days (count); primary_rate_<N>d is the share. Same for each window; null where the measure has no such window (retained at 30 days). Check is_complete_<N>d."
+      - name: revenue_per_person_uncapped_365d
+        description: "Average ACTUAL revenue per person in the 365 days after the month-end (no cap). x people_in_segment = the group's revenue. The capped revenue_per_person_<N>d columns are for planning maths, where a few very large gifts would swing averages. Same for each window."
+
+  - name: pocore__segment__test_option
+    description: >
+      One row per segment x test option (outcome window x holdout %), whole segments, on each
+      segment's primary KPI. Compare options: a bigger holdout detects smaller lifts but withholds
+      the treatment from more people. Nothing here should be added up.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['segment_id', 'outcome_window_days', 'holdout_pct']}
+
+  - name: pocore__person__segment
+    description: >
+      The roster: one row per person x segment, as of the latest month-end (from the group module),
+      with who the person is and their state that month-end, to act on the list. Counting rows for
+      one segment = its people. A person can appear in several segments, so filter to one first.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'segment_id']}

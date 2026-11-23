@@ -68,7 +68,13 @@
 
 {%- set population = "person_type = 'individual' and not is_deceased" -%}
 
-with snapshot as (
+with
+
+pocore_foundation__person__month_end as (select * from {{ ref('pocore_foundation__person__month_end') }}),
+
+pocore_foundation__person as (select * from {{ ref('pocore_foundation__person') }}),
+
+snapshot as (
     select
         person.person_id,
         month_end.month_end_date as snapshot_date,
@@ -78,8 +84,8 @@ with snapshot as (
         {%- for c in pocore_columns__person_month_end() %}
         month_end.{{ c }}{{ ',' if not loop.last }}
         {%- endfor %}
-    from {{ ref('pocore_foundation__person__month_end') }} as month_end
-    inner join {{ ref('pocore_foundation__person') }} as person
+    from pocore_foundation__person__month_end as month_end
+    inner join pocore_foundation__person as person
         on person.person_id = month_end.person_id
 ),
 

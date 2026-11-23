@@ -53,16 +53,3 @@ models:
         data_tests: [not_null]
       - name: anchor_date
         data_tests: [not_null]
-
-  - name: pocore_rollup__person__month_span
-    description: "One row per person x calendar month with eligible activity: counts and sums of gifts inside the month (a SPAN: adds up freely)."
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['person_id', 'month_start_date']}
-
-  - name: pocore_rollup__person__year_span
-    description: "One row per person x fiscal year with eligible activity: counts and sums of gifts inside the year (a SPAN: adds up freely)."
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['person_id', 'fiscal_year']}
-

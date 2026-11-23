@@ -14,15 +14,21 @@
 #}
 
 
-with gifts as (
+with
 
-    select g.person_id, g.gift_date, g.amount, g.is_refund
-    from {{ ref('pocore_foundation__gift') }} as g
-    inner join {{ ref('pocore_foundation__person') }} as person
-        on person.person_id = g.person_id
-    where g.is_kpi_eligible
+pocore_foundation__gift as (select * from {{ ref('pocore_foundation__gift') }}),
+
+pocore_foundation__person as (select * from {{ ref('pocore_foundation__person') }}),
+
+gifts as (
+
+    select pocore_foundation__gift.person_id, pocore_foundation__gift.gift_date, pocore_foundation__gift.amount, pocore_foundation__gift.is_refund
+    from pocore_foundation__gift
+    inner join pocore_foundation__person as person
+        on person.person_id = pocore_foundation__gift.person_id
+    where pocore_foundation__gift.is_kpi_eligible
       and person.person_type = 'individual'
-      and g.gift_date <= {{ pocore_client_config__as_of_date() }}
+      and pocore_foundation__gift.gift_date <= {{ pocore_client_config__as_of_date() }}
 
 ),
 

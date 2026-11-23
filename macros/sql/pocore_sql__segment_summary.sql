@@ -50,12 +50,12 @@ power as (
 ),
 
 headline as (
-    select p.*
-    from power as p
-    inner join primary_choices as pc
-        on  pc.segment_id          = coalesce(p.parent_segment_id, '__remainder__')
-        and pc.primary_window_days = p.outcome_window_days
-        and pc.primary_kpi         = p.kpi_id
+    select power.*
+    from power
+    inner join primary_choices
+        on  primary_choices.segment_id          = coalesce(power.parent_segment_id, '__remainder__')
+        and primary_choices.primary_window_days = power.outcome_window_days
+        and primary_choices.primary_kpi         = power.kpi_id
 ),
 
 revenue as (
@@ -65,35 +65,35 @@ revenue as (
 )
 
 select
-    h.segment_id,
-    h.segment_label,
-    h.segment_source,
-    h.parent_segment_id,
-    h.split_by,
-    h.split_value,
-    h.segment_set_id,
-    h.latest_anchor_date                                as month_end_date,
-    h.n_eligible                                        as people_in_segment,
-    h.kpi_id                                            as primary_kpi,
-    h.outcome_window_days,
-    h.baseline_recent                                   as rate_recent,
-    h.baseline_value                                    as rate_typical,
-    h.baseline_same_season                              as rate_same_season,
-    h.planning_basis,
-    h.is_unstable,
-    r.revenue_recent                                    as revenue_per_person_recent,
+    headline.segment_id,
+    headline.segment_label,
+    headline.segment_source,
+    headline.parent_segment_id,
+    headline.split_by,
+    headline.split_value,
+    headline.segment_set_id,
+    headline.latest_anchor_date                                as month_end_date,
+    headline.n_eligible                                        as people_in_segment,
+    headline.kpi_id                                            as primary_kpi,
+    headline.outcome_window_days,
+    headline.baseline_recent                                   as rate_recent,
+    headline.baseline_value                                    as rate_typical,
+    headline.baseline_same_season                              as rate_same_season,
+    headline.planning_basis,
+    headline.is_unstable,
+    revenue.revenue_recent                                    as revenue_per_person_recent,
     {{ holdout }}                                       as holdout_pct,
-    h.mde_abs_planning                                  as detectable_lift,
-    h.mde_relative_planning                             as detectable_lift_relative,
-    h.is_testable,
-    h.readout_date_if_launched_now                      as readable_by,
-    h.revenue_gap_recent                                as revenue_per_extra_donor,
-    h.n_eligible * 0.01 * h.revenue_gap_recent          as value_per_point,
-    h.n_eligible * h.mde_abs_planning                   as extra_donors_at_detectable_lift,
-    h.n_eligible * h.mde_abs_planning * h.revenue_gap_recent as value_of_detectable_lift
-from headline as h
-left join revenue as r
-    on  r.segment_id          = h.segment_id
-    and r.outcome_window_days = h.outcome_window_days
+    headline.mde_abs_planning                                  as detectable_lift,
+    headline.mde_relative_planning                             as detectable_lift_relative,
+    headline.is_testable,
+    headline.readout_date_if_launched_now                      as readable_by,
+    headline.revenue_gap_recent                                as revenue_per_extra_donor,
+    headline.n_eligible * 0.01 * headline.revenue_gap_recent          as value_per_point,
+    headline.n_eligible * headline.mde_abs_planning                   as extra_donors_at_detectable_lift,
+    headline.n_eligible * headline.mde_abs_planning * headline.revenue_gap_recent as value_of_detectable_lift
+from headline
+left join revenue
+    on  revenue.segment_id          = headline.segment_id
+    and revenue.outcome_window_days = headline.outcome_window_days
 
 {% endmacro %}

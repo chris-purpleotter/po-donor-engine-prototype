@@ -4,6 +4,10 @@
   The segment's headline measure and window are on pocore__segment (certified).
 #}
 
+with
+
+pocore_group__membership__month as (select * from {{ ref('pocore_group__membership__month') }})
+
 select distinct
     segment_id,
     segment_label,
@@ -12,4 +16,4 @@ select distinct
     split_by,
     split_value,
     segment_set_id
-from {{ ref('pocore_group__membership__month') }}
+from pocore_group__membership__month

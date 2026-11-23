@@ -15,7 +15,11 @@
 #}
 
 
-with person_years as (
+with
+
+pocore_movement__person__year as (select * from {{ ref('pocore_movement__person__year') }}),
+
+person_years as (
 
     select
         person_id,
@@ -26,7 +30,7 @@ with person_years as (
         previous_giving_year,
         donor_status,
         years_lapsed_before_reactivation
-    from {{ ref('pocore_movement__person__year') }}
+    from pocore_movement__person__year
 
 ),
 
@@ -43,11 +47,11 @@ bounds as (
 years as (
 
     -- cast: dbt.generate_series yields decimals on some warehouses (BigQuery)
-    select cast(b.first_year + (s.generated_number - 1) as {{ dbt.type_int() }}) as fiscal_year,
-           b.first_year, b.current_year
-    from ({{ dbt.generate_series(200) }}) as s
-    cross join bounds as b
-    where b.first_year + (s.generated_number - 1) <= b.current_year
+    select cast(bounds.first_year + (series.generated_number - 1) as {{ dbt.type_int() }}) as fiscal_year,
+           bounds.first_year, bounds.current_year
+    from ({{ dbt.generate_series(200) }}) as series
+    cross join bounds
+    where bounds.first_year + (series.generated_number - 1) <= bounds.current_year
 
 ),
 
@@ -72,48 +76,48 @@ status_counts as (
 -- Lost = gave last year, not this year (counted in this year).
 lost as (
 
-    select prev.fiscal_year + 1 as fiscal_year, count(*) as lost_donors
-    from person_years as prev
-    left join person_years as cur
-        on  cur.person_id    = prev.person_id
-        and cur.fiscal_year = prev.fiscal_year + 1
-    where cur.person_id is null
-    group by prev.fiscal_year + 1
+    select last_year.fiscal_year + 1 as fiscal_year, count(*) as lost_donors
+    from person_years as last_year
+    left join person_years as this_year
+        on  this_year.person_id    = last_year.person_id
+        and this_year.fiscal_year = last_year.fiscal_year + 1
+    where this_year.person_id is null
+    group by last_year.fiscal_year + 1
 
 ),
 
 assembled as (
 
     select
-        y.fiscal_year,
-        coalesce(c.total_donors, 0)                    as total_donors,
-        coalesce(c.new_donors, 0)                      as new_donors,
-        coalesce(c.second_year_donors, 0)              as second_year_donors,
-        coalesce(c.continuing_donors, 0)               as continuing_donors,
-        coalesce(c.reactivated_donors, 0)              as reactivated_donors,
-        coalesce(c.reactivated_second_year_donors, 0)  as reactivated_second_year_donors,
-        coalesce(l.lost_donors, 0)                     as lost_donors,
-        coalesce(c.revenue, 0)                         as revenue,
-        coalesce(c.revenue_new, 0)                     as revenue_new,
-        coalesce(c.revenue_returning, 0)               as revenue_returning,
-        (y.fiscal_year = y.current_year)               as is_partial_year,
-        (y.fiscal_year - y.first_year >= 5)            as has_full_history
-    from years as y
-    left join status_counts as c on c.fiscal_year = y.fiscal_year
-    left join lost as l          on l.fiscal_year = y.fiscal_year
+        years.fiscal_year,
+        coalesce(status_counts.total_donors, 0)                    as total_donors,
+        coalesce(status_counts.new_donors, 0)                      as new_donors,
+        coalesce(status_counts.second_year_donors, 0)              as second_year_donors,
+        coalesce(status_counts.continuing_donors, 0)               as continuing_donors,
+        coalesce(status_counts.reactivated_donors, 0)              as reactivated_donors,
+        coalesce(status_counts.reactivated_second_year_donors, 0)  as reactivated_second_year_donors,
+        coalesce(lost.lost_donors, 0)                     as lost_donors,
+        coalesce(status_counts.revenue, 0)                         as revenue,
+        coalesce(status_counts.revenue_new, 0)                     as revenue_new,
+        coalesce(status_counts.revenue_returning, 0)               as revenue_returning,
+        (years.fiscal_year = years.current_year)               as is_partial_year,
+        (years.fiscal_year - years.first_year >= 5)            as has_full_history
+    from years
+    left join status_counts on status_counts.fiscal_year = years.fiscal_year
+    left join lost          on lost.fiscal_year = years.fiscal_year
 
 )
 
 select
-    a.*,
-    lag(a.total_donors) over (order by a.fiscal_year)                            as last_year_total_donors,
+    assembled.*,
+    lag(assembled.total_donors) over (order by assembled.fiscal_year)                            as last_year_total_donors,
     -- denominators as columns, so BI tools can pool retention over several years:
     -- sum(second_year_donors) / sum(last_year_new_donors)
-    lag(a.new_donors) over (order by a.fiscal_year)                              as last_year_new_donors,
-    case when lag(a.new_donors) over (order by a.fiscal_year) > 0
-         then cast(a.second_year_donors as {{ dbt.type_float() }})
-              / lag(a.new_donors) over (order by a.fiscal_year) end              as new_donor_retention,
-    case when lag(a.total_donors) over (order by a.fiscal_year) > 0
-         then cast(a.second_year_donors + a.continuing_donors + a.reactivated_second_year_donors as {{ dbt.type_float() }})
-              / lag(a.total_donors) over (order by a.fiscal_year) end            as overall_retention
-from assembled as a
+    lag(assembled.new_donors) over (order by assembled.fiscal_year)                              as last_year_new_donors,
+    case when lag(assembled.new_donors) over (order by assembled.fiscal_year) > 0
+         then cast(assembled.second_year_donors as {{ dbt.type_float() }})
+              / lag(assembled.new_donors) over (order by assembled.fiscal_year) end              as new_donor_retention,
+    case when lag(assembled.total_donors) over (order by assembled.fiscal_year) > 0
+         then cast(assembled.second_year_donors + assembled.continuing_donors + assembled.reactivated_second_year_donors as {{ dbt.type_float() }})
+              / lag(assembled.total_donors) over (order by assembled.fiscal_year) end            as overall_retention
+from assembled

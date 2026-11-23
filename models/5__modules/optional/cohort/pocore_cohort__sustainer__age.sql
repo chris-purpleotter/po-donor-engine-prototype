@@ -1,4 +1,4 @@
-{{ config(enabled=pocore_client_config__module_enabled('sustainers')) }}
+{{ config(enabled=pocore_client_config__module_enabled('cohort')) }}
 
 {#
   pocore_cohort__sustainer__age — ONE ROW PER SUSTAINER COHORT x BREAKDOWN x MONTH OF LIFE.
@@ -22,7 +22,13 @@
 {%- set has_cost = 'acquisition_cost' in var('people_extra_columns') -%}
 {%- set float = dbt.type_float() -%}
 
-with people as (
+with
+
+pocore_foundation__person as (select * from {{ ref('pocore_foundation__person') }}),
+
+pocore_cohort__person__sustainer_age as (select * from {{ ref('pocore_cohort__person__sustainer_age') }}),
+
+people as (
 
     select
         person_id,
@@ -32,17 +38,17 @@ with people as (
         {%- else %}
         cast(null as {{ float }})                                        as acquisition_cost
         {%- endif %}
-    from {{ ref('pocore_foundation__person') }}
+    from pocore_foundation__person
 
 ),
 
 tagged as (
 
-    select sm.*, p.acquisition_channel, p.acquisition_cost
-    from {{ ref('pocore_cohort__person__sustainer_age') }} as sm
-    inner join people as p
-        on p.person_id = sm.person_id
-    where sm.month_number <= {{ max_months }}
+    select pocore_cohort__person__sustainer_age.*, people.acquisition_channel, people.acquisition_cost
+    from pocore_cohort__person__sustainer_age
+    inner join people
+        on people.person_id = pocore_cohort__person__sustainer_age.person_id
+    where pocore_cohort__person__sustainer_age.month_number <= {{ max_months }}
 
 ),
 
@@ -89,42 +95,42 @@ months as (
 per_month as (
 
     select
-        m.*,
-        case when m.sustainers_observed > 0
-             then cast(m.revenue as {{ float }}) / m.sustainers_observed end           as revenue_per_observed,
-        case when m.paid_sustainers_observed > 0
-             then cast(m.paid_revenue as {{ float }}) / m.paid_sustainers_observed end as paid_revenue_per_observed
-    from months as m
+        months.*,
+        case when months.sustainers_observed > 0
+             then cast(months.revenue as {{ float }}) / months.sustainers_observed end           as revenue_per_observed,
+        case when months.paid_sustainers_observed > 0
+             then cast(months.paid_revenue as {{ float }}) / months.paid_sustainers_observed end as paid_revenue_per_observed
+    from months
 
 )
 
 select
     'first_recurring'                                                            as cohort_type,
-    pm.cohort_year,
-    pm.breakdown_by,
-    pm.breakdown_value,
-    pm.age_months,
-    s.sustainers_started,
-    pm.sustainers_observed,
-    pm.sustainers_giving,
-    case when pm.sustainers_observed > 0
-         then cast(pm.sustainers_giving as {{ float }}) / pm.sustainers_observed end as survival_rate,
-    pm.revenue,
+    per_month.cohort_year,
+    per_month.breakdown_by,
+    per_month.breakdown_value,
+    per_month.age_months,
+    starters.sustainers_started,
+    per_month.sustainers_observed,
+    per_month.sustainers_giving,
+    case when per_month.sustainers_observed > 0
+         then cast(per_month.sustainers_giving as {{ float }}) / per_month.sustainers_observed end as survival_rate,
+    per_month.revenue,
     -- observation is monotone (reaching month N means months 1..N-1 were reached), so when
     -- month N is observed every earlier term exists
-    case when pm.sustainers_observed > 0
-         then sum(pm.revenue_per_observed) over (
-                  partition by pm.cohort_year, pm.breakdown_by, pm.breakdown_value
-                  order by pm.age_months rows between unbounded preceding and current row) end as ltv_to_date,
+    case when per_month.sustainers_observed > 0
+         then sum(per_month.revenue_per_observed) over (
+                  partition by per_month.cohort_year, per_month.breakdown_by, per_month.breakdown_value
+                  order by per_month.age_months rows between unbounded preceding and current row) end as ltv_to_date,
     {%- if has_cost %}
-    s.paid_sustainers_started,
-    pm.paid_sustainers_observed,
-    pm.paid_revenue,
-    cast(s.paid_acquisition_cost as {{ float }}) / nullif(s.paid_sustainers_started, 0) as cost_per_new_sustainer,
-    case when pm.paid_sustainers_observed > 0
-         then sum(pm.paid_revenue_per_observed) over (
-                  partition by pm.cohort_year, pm.breakdown_by, pm.breakdown_value
-                  order by pm.age_months rows between unbounded preceding and current row) end as paid_ltv_to_date
+    starters.paid_sustainers_started,
+    per_month.paid_sustainers_observed,
+    per_month.paid_revenue,
+    cast(starters.paid_acquisition_cost as {{ float }}) / nullif(starters.paid_sustainers_started, 0) as cost_per_new_sustainer,
+    case when per_month.paid_sustainers_observed > 0
+         then sum(per_month.paid_revenue_per_observed) over (
+                  partition by per_month.cohort_year, per_month.breakdown_by, per_month.breakdown_value
+                  order by per_month.age_months rows between unbounded preceding and current row) end as paid_ltv_to_date
     {%- else %}
     cast(null as {{ dbt.type_int() }})                                           as paid_sustainers_started,
     cast(null as {{ dbt.type_int() }})                                           as paid_sustainers_observed,
@@ -132,8 +138,8 @@ select
     cast(null as {{ float }})                                                    as cost_per_new_sustainer,
     cast(null as {{ float }})                                                    as paid_ltv_to_date
     {%- endif %}
-from per_month as pm
-inner join starters as s
-    on  s.cohort_year     = pm.cohort_year
-    and s.breakdown_by    = pm.breakdown_by
-    and s.breakdown_value = pm.breakdown_value
+from per_month
+inner join starters
+    on  starters.cohort_year     = per_month.cohort_year
+    and starters.breakdown_by    = per_month.breakdown_by
+    and starters.breakdown_value = per_month.breakdown_value

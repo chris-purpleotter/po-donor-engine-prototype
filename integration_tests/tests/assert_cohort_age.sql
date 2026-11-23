@@ -1,4 +1,4 @@
-{{ config(enabled=po_core.pocore_client_config__module_enabled('sustainers')) }}
+{{ config(enabled=po_core.pocore_client_config__module_enabled('cohort')) }}
 
 -- Hand-calculated sustainer cohorts (as_of = 2026-09-30). Zero rows = pass.
 -- Only sustainer: D05 (Face to Face), $20 recurring in Jul, Aug, Sep 2026; acquisition_cost 30.

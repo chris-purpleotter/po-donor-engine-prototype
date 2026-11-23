@@ -6,7 +6,7 @@
     - plus one attr_<name> column per entry in the client's `people_extra_columns` var
 
   Edit this only when the ENGINE gains a new contract column for every client.
-  Used by: pocore_entity__person, the group module (segment rules can use these), the pack cube.
+  Used by: pocore_entity__person, the group module (segment rules can use these), the insights cube.
 #}
 {% macro pocore_columns__person() %}
     {%- set columns = ['created_at', 'person_type', 'is_deceased', 'region', 'acquisition_channel', 'acquisition_theme'] -%}

@@ -10,10 +10,14 @@
   flows are null (otherwise everyone would look like they "entered").
 #}
 
-with membership as (
+with
+
+pocore_group__membership__month as (select * from {{ ref('pocore_group__membership__month') }}),
+
+membership as (
 
     select segment_id, person_id, month_end_date as snapshot_date
-    from {{ ref('pocore_group__membership__month') }}
+    from pocore_group__membership__month
 
 ),
 
@@ -33,32 +37,32 @@ first_snapshot as (
 -- In the segment now, but not at the previous month-end.
 entering as (
 
-    select cur.segment_id, cur.snapshot_date, count(*) as donors_entering
-    from membership as cur
-    inner join snapshots as s
-        on s.snapshot_date = cur.snapshot_date
-    left join membership as prev
-        on  prev.segment_id    = cur.segment_id
-        and prev.person_id      = cur.person_id
-        and prev.snapshot_date = s.previous_snapshot_date
-    where prev.person_id is null
-    group by cur.segment_id, cur.snapshot_date
+    select this_month.segment_id, this_month.snapshot_date, count(*) as donors_entering
+    from membership as this_month
+    inner join snapshots
+        on snapshots.snapshot_date = this_month.snapshot_date
+    left join membership as last_month
+        on  last_month.segment_id    = this_month.segment_id
+        and last_month.person_id      = this_month.person_id
+        and last_month.snapshot_date = snapshots.previous_snapshot_date
+    where last_month.person_id is null
+    group by this_month.segment_id, this_month.snapshot_date
 
 ),
 
 -- In the segment at the previous month-end, but not now (counted at the current month).
 leaving as (
 
-    select prev.segment_id, s.snapshot_date, count(*) as donors_leaving
-    from membership as prev
-    inner join snapshots as s
-        on s.previous_snapshot_date = prev.snapshot_date
-    left join membership as cur
-        on  cur.segment_id    = prev.segment_id
-        and cur.person_id      = prev.person_id
-        and cur.snapshot_date = s.snapshot_date
-    where cur.person_id is null
-    group by prev.segment_id, s.snapshot_date
+    select last_month.segment_id, snapshots.snapshot_date, count(*) as donors_leaving
+    from membership as last_month
+    inner join snapshots
+        on snapshots.previous_snapshot_date = last_month.snapshot_date
+    left join membership as this_month
+        on  this_month.segment_id    = last_month.segment_id
+        and this_month.person_id      = last_month.person_id
+        and this_month.snapshot_date = snapshots.snapshot_date
+    where this_month.person_id is null
+    group by last_month.segment_id, snapshots.snapshot_date
 
 ),
 
@@ -69,15 +73,15 @@ segment_months as (
 )
 
 select
-    sm.segment_id,
-    sm.snapshot_date,
-    case when sm.snapshot_date = f.snapshot_date then null
-         else coalesce(e.donors_entering, 0) end           as donors_entering,
-    case when sm.snapshot_date = f.snapshot_date then null
-         else coalesce(l.donors_leaving, 0) end            as donors_leaving
-from segment_months as sm
-cross join first_snapshot as f
-left join entering as e
-    on e.segment_id = sm.segment_id and e.snapshot_date = sm.snapshot_date
-left join leaving as l
-    on l.segment_id = sm.segment_id and l.snapshot_date = sm.snapshot_date
+    segment_months.segment_id,
+    segment_months.snapshot_date,
+    case when segment_months.snapshot_date = first_snapshot.snapshot_date then null
+         else coalesce(entering.donors_entering, 0) end           as donors_entering,
+    case when segment_months.snapshot_date = first_snapshot.snapshot_date then null
+         else coalesce(leaving.donors_leaving, 0) end            as donors_leaving
+from segment_months
+cross join first_snapshot
+left join entering
+    on entering.segment_id = segment_months.segment_id and entering.snapshot_date = segment_months.snapshot_date
+left join leaving
+    on leaving.segment_id = segment_months.segment_id and leaving.snapshot_date = segment_months.snapshot_date

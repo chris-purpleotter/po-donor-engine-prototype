@@ -1,11 +1,10 @@
 version: 2
 
-# FOUNDATION (v0.4.0): the STAR. Reliable and joinable: one dimension (person) and facts at
-# fixed grains, built from the pipeline input -> fact -> rollup. No business opinions, no copied
-# attributes: join pocore_foundation__person on person_id for who the person is.
+# FOUNDATION: the STAR. Two dimensions (person, date) and two facts:
+#   foundation__gift                "what happened": one row per gift; sum freely over people AND time
+#   foundation__person__month_end   "where they stood": a moment; sum across people at ONE month-end only
+# No business opinions, no copied attributes: join the dimensions (person_id; a date to date_day).
 # Grain = the table name; keys are tested unique; every foreign key is tested.
-#   _span tables       counts and sums inside a period: add up freely (people AND time)
-#   __month_end        a moment (as of / after a month-end): sum across people at ONE month-end only
 
 models:
   - name: pocore_foundation__person
@@ -23,20 +22,6 @@ models:
         description: "Lineage: the system this person record came from."
       - name: source_record_id
         description: "Lineage: the record's id in source_system."
-
-  - name: pocore_foundation__person_identity
-    description: >
-      BRIDGE. One row per source record: which person each record in each source system belongs
-      to (the identity crosswalk). A person can have several identities.
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['source_system', 'source_record_id']}
-    columns:
-      - name: person_id
-        data_tests:
-          - not_null
-          - relationships:
-              arguments: {to: ref('pocore_foundation__person'), field: person_id}
 
   - name: pocore_foundation__gift
     description: >
@@ -68,35 +53,6 @@ models:
       - name: stage_at_gift
         description: "The person's lifecycle stage at the last month-end before the gift. Null for gifts before the snapshot history starts."
 
-  - name: pocore_foundation__person__month_span
-    description: >
-      SPAN FACT. One row per person x calendar month with KPI-eligible activity (months with none
-      are absent). Counts and sums of gifts INSIDE the month: gifts, amount (net), qualifying_gifts,
-      recurring_payments, first_gifts, reactivation_gifts. Add up freely across people and months.
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['person_id', 'month_start_date']}
-    columns:
-      - name: person_id
-        data_tests:
-          - not_null
-          - relationships:
-              arguments: {to: ref('pocore_foundation__person'), field: person_id}
-
-  - name: pocore_foundation__person__year_span
-    description: >
-      SPAN FACT. One row per person x fiscal year with KPI-eligible activity (years with none are
-      absent). The same counts and sums as the month span, inside the fiscal year. Add up freely.
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['person_id', 'fiscal_year']}
-    columns:
-      - name: person_id
-        data_tests:
-          - not_null
-          - relationships:
-              arguments: {to: ref('pocore_foundation__person'), field: person_id}
-
   - name: pocore_foundation__person__month_end
     description: >
       SNAPSHOT FACT (a moment). One row per person x month-end (the last snapshot_lookback_months
@@ -117,3 +73,16 @@ models:
         data_tests: [not_null]
       - name: is_complete_90d
         description: "True when the 90 days after month_end_date have fully happened by as_of. Rows where this is false have partial outcomes: never treat them as final. (Same for each window.)"
+
+  - name: pocore_foundation__date
+    description: >
+      DIMENSION. One row per day, from the earliest gift to as_of: month start/end, calendar year,
+      quarter and month, fiscal_year, is_month_end, is_latest_month_end. Join a fact's date to
+      date_day to group by any period, or pin the month-end snapshot to one moment.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['date_day']}
+    columns:
+      - name: date_day
+        data_tests: [not_null]
+

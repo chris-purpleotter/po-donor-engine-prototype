@@ -9,9 +9,3 @@ models:
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['person_id']}
-
-  - name: pocore_entity__person_identity
-    description: "One row per source record -> person (the identity crosswalk)."
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['source_system', 'source_record_id']}

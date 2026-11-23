@@ -11,14 +11,20 @@
 #}
 
 
-with gifts as (
+with
+
+pocore_input__gifts as (select * from {{ ref('pocore_input__gifts') }}),
+
+pocore_input__people as (select * from {{ ref('pocore_input__people') }}),
+
+gifts as (
 
     select
-        g.*,
-        coalesce(d.person_type, 'unknown')   as person_type
-    from {{ ref('pocore_input__gifts') }} as g
-    left join {{ ref('pocore_input__people') }} as d
-        on d.person_id = g.person_id
+        pocore_input__gifts.*,
+        coalesce(pocore_input__people.person_type, 'unknown')   as person_type
+    from pocore_input__gifts
+    left join pocore_input__people
+        on pocore_input__people.person_id = pocore_input__gifts.person_id
 
 )
 

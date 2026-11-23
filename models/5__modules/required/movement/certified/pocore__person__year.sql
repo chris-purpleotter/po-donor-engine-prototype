@@ -21,10 +21,18 @@
 #}
 
 
-with people as (
+with
+
+pocore_foundation__person as (select * from {{ ref('pocore_foundation__person') }}),
+
+pocore_movement__person__year as (select * from {{ ref('pocore_movement__person__year') }}),
+
+pocore_foundation__person__month_end as (select * from {{ ref('pocore_foundation__person__month_end') }}),
+
+people as (
 
     select person_id, created_at, is_deceased, region, acquisition_channel, acquisition_theme
-    from {{ ref('pocore_foundation__person') }}
+    from pocore_foundation__person
     where person_type = 'individual'
 
 ),
@@ -32,7 +40,7 @@ with people as (
 giving as (
 
     select person_id, giving_year as fiscal_year, cohort_year, gifts, amount_given, donor_status
-    from {{ ref('pocore_movement__person__year') }}
+    from pocore_movement__person__year
 
 ),
 
@@ -43,18 +51,18 @@ bounds as (
 starts as (
 
     select
-        p.person_id,
-        case when g.first_gift_year is not null
-                  and g.first_gift_year < {{ pocore_helpers__fiscal_year('p.created_at') }}
-             then g.first_gift_year
-             else {{ pocore_helpers__fiscal_year('p.created_at') }} end              as start_year,
-        g.first_gift_year                                                   as cohort_year
-    from people as p
+        people.person_id,
+        case when first_gift_years.first_gift_year is not null
+                  and first_gift_years.first_gift_year < {{ pocore_helpers__fiscal_year('people.created_at') }}
+             then first_gift_years.first_gift_year
+             else {{ pocore_helpers__fiscal_year('people.created_at') }} end              as start_year,
+        first_gift_years.first_gift_year                                                   as cohort_year
+    from people
     left join (
         select person_id, min(fiscal_year) as first_gift_year
         from giving
         group by person_id
-    ) as g on g.person_id = p.person_id
+    ) as first_gift_years on first_gift_years.person_id = people.person_id
 
 ),
 
@@ -62,14 +70,14 @@ starts as (
 person_years as (
 
     select
-        s.person_id,
-        s.cohort_year,
-        cast(s.start_year + (n.generated_number - 1) as {{ dbt.type_int() }}) as fiscal_year,
-        b.current_year
-    from starts as s
-    cross join ({{ dbt.generate_series(200) }}) as n
-    cross join bounds as b
-    where s.start_year + (n.generated_number - 1) <= b.current_year
+        starts.person_id,
+        starts.cohort_year,
+        cast(starts.start_year + (series.generated_number - 1) as {{ dbt.type_int() }}) as fiscal_year,
+        bounds.current_year
+    from starts
+    cross join ({{ dbt.generate_series(200) }}) as series
+    cross join bounds
+    where starts.start_year + (series.generated_number - 1) <= bounds.current_year
 
 ),
 
@@ -77,7 +85,7 @@ person_years as (
 year_dates as (
 
     select {{ pocore_helpers__fiscal_year('month_end_date') }} as fiscal_year, max(month_end_date) as stage_date
-    from (select distinct month_end_date from {{ ref('pocore_foundation__person__month_end') }}) as d
+    from (select distinct month_end_date from pocore_foundation__person__month_end) as month_ends
     group by {{ pocore_helpers__fiscal_year('month_end_date') }}
 
 ),
@@ -85,66 +93,66 @@ year_dates as (
 stages as (
 
     select person_id, month_end_date, lifecycle_stage
-    from {{ ref('pocore_foundation__person__month_end') }}
+    from pocore_foundation__person__month_end
 
 ),
 
 with_giving as (
 
     select
-        py.person_id,
-        py.fiscal_year,
-        py.cohort_year,
-        g.donor_status,
-        coalesce(g.gifts, 0)                                                    as gifts,
-        coalesce(g.amount_given, 0)                                             as amount_given,
-        (g.person_id is not null)                                               as gave,
+        person_years.person_id,
+        person_years.fiscal_year,
+        person_years.cohort_year,
+        giving.donor_status,
+        coalesce(giving.gifts, 0)                                                    as gifts,
+        coalesce(giving.amount_given, 0)                                             as amount_given,
+        (giving.person_id is not null)                                               as gave,
         -- did they give last year / ever before this year?
-        max(case when g.person_id is not null then py.fiscal_year end) over (
-            partition by py.person_id order by py.fiscal_year
+        max(case when giving.person_id is not null then person_years.fiscal_year end) over (
+            partition by person_years.person_id order by person_years.fiscal_year
             rows between unbounded preceding and 1 preceding)                   as last_gave_year_before,
-        (py.fiscal_year = py.current_year)                                      as is_partial_year
-    from person_years as py
-    left join giving as g
-        on  g.person_id   = py.person_id
-        and g.fiscal_year = py.fiscal_year
+        (person_years.fiscal_year = person_years.current_year)                                      as is_partial_year
+    from person_years
+    left join giving
+        on  giving.person_id   = person_years.person_id
+        and giving.fiscal_year = person_years.fiscal_year
 
 )
 
 select
-    w.person_id,
-    w.fiscal_year,
-    w.cohort_year,
-    p.is_deceased,
-    p.region,
-    p.acquisition_channel,
-    p.acquisition_theme,
-    w.gave,
-    w.gifts,
-    w.amount_given,
+    with_giving.person_id,
+    with_giving.fiscal_year,
+    with_giving.cohort_year,
+    people.is_deceased,
+    people.region,
+    people.acquisition_channel,
+    people.acquisition_theme,
+    with_giving.gave,
+    with_giving.gifts,
+    with_giving.amount_given,
     case
-        when w.gave                                       then w.donor_status
-        when w.last_gave_year_before = w.fiscal_year - 1  then 'Lost'
-        when w.last_gave_year_before is not null          then 'Not giving'
+        when with_giving.gave                                       then with_giving.donor_status
+        when with_giving.last_gave_year_before = with_giving.fiscal_year - 1  then 'Lost'
+        when with_giving.last_gave_year_before is not null          then 'Not giving'
         else 'Never given'
     end                                                                         as movement_status,
-    yd.stage_date,
-    s0.lifecycle_stage                                                          as stage,
-    s1.lifecycle_stage                                                          as stage_1y_ago,
-    s2.lifecycle_stage                                                          as stage_2y_ago,
-    s3.lifecycle_stage                                                          as stage_3y_ago,
-    w.is_partial_year
-from with_giving as w
-inner join people as p
-    on p.person_id = w.person_id
-left join year_dates as yd
-    on yd.fiscal_year = w.fiscal_year
-left join stages as s0
-    on s0.person_id = w.person_id and s0.month_end_date = yd.stage_date
+    year_dates.stage_date,
+    stages_now.lifecycle_stage                                                  as stage,
+    stages_1y_ago.lifecycle_stage                                             as stage_1y_ago,
+    stages_2y_ago.lifecycle_stage                                             as stage_2y_ago,
+    stages_3y_ago.lifecycle_stage                                             as stage_3y_ago,
+    with_giving.is_partial_year
+from with_giving
+inner join people
+    on people.person_id = with_giving.person_id
+left join year_dates
+    on year_dates.fiscal_year = with_giving.fiscal_year
+left join stages as stages_now
+    on stages_now.person_id = with_giving.person_id and stages_now.month_end_date = year_dates.stage_date
 {%- for n in [1, 2, 3] %}
 -- month-end N years earlier (month-end arithmetic: plain dateadd turns Feb 28 into Feb 28, not Feb 29)
-left join stages as s{{ n }}
-    on  s{{ n }}.person_id = w.person_id
-    and s{{ n }}.month_end_date = cast({{ dbt.dateadd('day', -1,
-            dbt.dateadd('month', 1 - 12 * n, dbt.date_trunc('month', 'yd.stage_date'))) }} as date)
+left join stages as stages_{{ n }}y_ago
+    on  stages_{{ n }}y_ago.person_id = with_giving.person_id
+    and stages_{{ n }}y_ago.month_end_date = cast({{ dbt.dateadd('day', -1,
+            dbt.dateadd('month', 1 - 12 * n, dbt.date_trunc('month', 'year_dates.stage_date'))) }} as date)
 {%- endfor %}

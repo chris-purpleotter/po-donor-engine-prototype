@@ -35,10 +35,16 @@
 {%- endif -%}
 {%- set recurring_active_days = var('recurring_active_days') | int -%}
 
-with anchors as (
+with
+
+pocore_rollup__person__month_end_lookback as (select * from {{ ref('pocore_rollup__person__month_end_lookback') }}),
+
+pocore_event__gift as (select * from {{ ref('pocore_event__gift') }}),
+
+anchors as (
 
     select person_id, snapshot_date as anchor_date
-    from {{ ref('pocore_rollup__person__month_end_lookback') }}
+    from pocore_rollup__person__month_end_lookback
 
 ),
 
@@ -50,7 +56,7 @@ gifts_flagged as (
         is_qualifying,
         is_recurring_payment,
         is_first_recurring_payment
-    from {{ ref('pocore_event__gift') }}
+    from pocore_event__gift
     where is_kpi_eligible
 
 ),
@@ -59,31 +65,31 @@ gifts_flagged as (
 outcomes as (
 
     select
-        a.person_id,
-        a.anchor_date,
+        anchors.person_id,
+        anchors.anchor_date,
         {%- for w in windows %}
-        max(case when q.is_qualifying
-                  and q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
+        max(case when gifts_flagged.is_qualifying
+                  and gifts_flagged.gift_date <= cast({{ dbt.dateadd('day', w, 'anchors.anchor_date') }} as date)
                  then 1 else 0 end)                                            as gave_{{ w }}d,
-        max(case when q.is_first_recurring_payment
-                  and q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
+        max(case when gifts_flagged.is_first_recurring_payment
+                  and gifts_flagged.gift_date <= cast({{ dbt.dateadd('day', w, 'anchors.anchor_date') }} as date)
                  then 1 else 0 end)                                            as started_monthly_{{ w }}d,
-        coalesce(sum(case when q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
-                          then q.amount end), 0)                               as revenue_uncapped_{{ w }}d
+        coalesce(sum(case when gifts_flagged.gift_date <= cast({{ dbt.dateadd('day', w, 'anchors.anchor_date') }} as date)
+                          then gifts_flagged.amount end), 0)                               as revenue_uncapped_{{ w }}d
         {%- if w in retained_windows %},
-        max(case when q.is_recurring_payment
-                  and q.gift_date >= cast({{ dbt.dateadd('day', w - recurring_active_days, 'a.anchor_date') }} as date)
-                  and q.gift_date <= cast({{ dbt.dateadd('day', w, 'a.anchor_date') }} as date)
+        max(case when gifts_flagged.is_recurring_payment
+                  and gifts_flagged.gift_date >= cast({{ dbt.dateadd('day', w - recurring_active_days, 'anchors.anchor_date') }} as date)
+                  and gifts_flagged.gift_date <= cast({{ dbt.dateadd('day', w, 'anchors.anchor_date') }} as date)
                  then 1 else 0 end)                                            as retained_{{ w }}d
         {%- endif %}
         {%- if not loop.last %},{% endif %}
         {%- endfor %}
-    from anchors as a
-    left join gifts_flagged as q
-        on  q.person_id  = a.person_id
-        and q.gift_date > a.anchor_date
-        and q.gift_date <= cast({{ dbt.dateadd('day', max_window, 'a.anchor_date') }} as date)
-    group by a.person_id, a.anchor_date
+    from anchors
+    left join gifts_flagged
+        on  gifts_flagged.person_id  = anchors.person_id
+        and gifts_flagged.gift_date > anchors.anchor_date
+        and gifts_flagged.gift_date <= cast({{ dbt.dateadd('day', max_window, 'anchors.anchor_date') }} as date)
+    group by anchors.person_id, anchors.anchor_date
 
 )
 

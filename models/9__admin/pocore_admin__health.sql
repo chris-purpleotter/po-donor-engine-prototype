@@ -17,14 +17,22 @@
 {%- set tolerance = var('finance_tolerance_pct') | float -%}
 {%- set modules_on = [] -%}
 {#- keep in step with the known modules in pocore_client_config__module_enabled -#}
-{%- for m in ['sustainers'] -%}
+{%- for m in ['cohort'] -%}
     {%- if pocore_client_config__module_enabled(m) %}{% do modules_on.append(m) %}{% endif -%}
 {%- endfor -%}
 {#- latest COMPLETE month: the month that ends on or before as_of -#}
 {%- set last_complete_month_sql = "cast(" ~ dbt.dateadd('month', -1, dbt.date_trunc('month', dbt.dateadd('day', 1, pocore_client_config__as_of_date()))) ~ " as date)" -%}
 
-with gifts as (
-    select * from {{ ref('pocore_input__gifts') }}
+with
+
+pocore_input__gifts as (select * from {{ ref('pocore_input__gifts') }}),
+
+pocore_group__membership__month as (select * from {{ ref('pocore_group__membership__month') }}),
+
+pocore_input__people as (select * from {{ ref('pocore_input__people') }}),
+
+gifts as (
+    select * from pocore_input__gifts
 ),
 
 gifts_to_as_of as (
@@ -43,16 +51,16 @@ monthly as (
 
 -- Months in the lookback, from the first gift month on (earlier months aren't "gaps").
 month_spine as (
-    select cast({{ dbt.dateadd('month', '-(cast(s.generated_number as ' ~ dbt.type_int() ~ ') - 1)', dbt.date_trunc('month', pocore_client_config__as_of_date())) }} as date) as gift_month
-    from ({{ dbt.generate_series(lookback) }}) as s
+    select cast({{ dbt.dateadd('month', '-(cast(series.generated_number as ' ~ dbt.type_int() ~ ') - 1)', dbt.date_trunc('month', pocore_client_config__as_of_date())) }} as date) as gift_month
+    from ({{ dbt.generate_series(lookback) }}) as series
 ),
 
 empty_months as (
     select count(*) as n
-    from month_spine as s
-    left join monthly as m on m.gift_month = s.gift_month
-    where m.gift_month is null
-      and s.gift_month >= (select min(gift_month) from monthly)
+    from month_spine
+    left join monthly on monthly.gift_month = month_spine.gift_month
+    where monthly.gift_month is null
+      and month_spine.gift_month >= (select min(gift_month) from monthly)
 ),
 
 recurring_share as (
@@ -70,7 +78,7 @@ recurring_share as (
 
 unlinked as (
     select count(distinct gift_id) as n
-    from ({{ pocore_sql__suspected_unlinked_recurring(ref('pocore_input__gifts')) }}) as u
+    from ({{ pocore_sql__suspected_unlinked_recurring(ref('pocore_input__gifts')) }}) as unlinked
 ),
 
 last_12m as (
@@ -84,8 +92,8 @@ last_12m as (
 
 latest_members as (
     select segment_id, count(*) as n
-    from {{ ref('pocore_group__membership__month') }}
-    where month_end_date = (select max(month_end_date) from {{ ref('pocore_group__membership__month') }})
+    from pocore_group__membership__month
+    where month_end_date = (select max(month_end_date) from pocore_group__membership__month)
     group by segment_id
 ),
 
@@ -98,10 +106,10 @@ all_segments as (
 empty_segments as (
     select
         count(*)                                                                         as n,
-        {{ dbt.listagg('a.segment_id', "', '", 'order by a.segment_id') }}               as ids
-    from all_segments as a
-    left join latest_members as m on m.segment_id = a.segment_id
-    where m.segment_id is null
+        {{ dbt.listagg('all_segments.segment_id', "', '", 'order by all_segments.segment_id') }}               as ids
+    from all_segments
+    left join latest_members on latest_members.segment_id = all_segments.segment_id
+    where latest_members.segment_id is null
 ),
 
 {%- if finance_model %}
@@ -113,12 +121,12 @@ engine_by_year as (
 
 finance as (
     select
-        f.giving_year,
-        cast(f.finance_revenue as {{ float }})                                           as finance_revenue,
-        cast(coalesce(e.engine_net, 0) as {{ float }})                                   as engine_net
-    from {{ ref(project_name, finance_model) }} as f
-    left join engine_by_year as e
-        on e.giving_year = f.giving_year
+        finance_totals.giving_year,
+        cast(finance_totals.finance_revenue as {{ float }})                                           as finance_revenue,
+        cast(coalesce(engine_by_year.engine_net, 0) as {{ float }})                                   as engine_net
+    from {{ ref(project_name, finance_model) }} as finance_totals
+    left join engine_by_year
+        on engine_by_year.giving_year = finance_totals.giving_year
 ),
 {%- endif %}
 
@@ -183,7 +191,7 @@ checks as (
     union all
     select 'donors_total', 'all', 'Donors in the canonical input',
            cast(count(*) as {{ float }}), cast(null as {{ float }}), 'info', cast(null as {{ str }})
-    from {{ ref('pocore_input__people') }}
+    from pocore_input__people
 
     union all
     select 'gifts_total', 'all', 'Gifts in the canonical input (all dates)',

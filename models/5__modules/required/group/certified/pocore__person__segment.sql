@@ -8,10 +8,18 @@
   at that month-end (pocore_foundation__person__month_end) are repeated for display and filtering.
 #}
 
-with latest as (
+with
+
+pocore_group__membership__month as (select * from {{ ref('pocore_group__membership__month') }}),
+
+pocore_foundation__person as (select * from {{ ref('pocore_foundation__person') }}),
+
+pocore_foundation__person__month_end as (select * from {{ ref('pocore_foundation__person__month_end') }}),
+
+latest as (
 
     select max(month_end_date) as month_end_date
-    from {{ ref('pocore_group__membership__month') }}
+    from pocore_group__membership__month
 
 )
 
@@ -40,11 +48,11 @@ select
     {%- for c in var('people_extra_columns') %},
     person.attr_{{ c }}
     {%- endfor %}
-from {{ ref('pocore_group__membership__month') }} as membership
+from pocore_group__membership__month as membership
 inner join latest
     on membership.month_end_date = latest.month_end_date
-inner join {{ ref('pocore_foundation__person') }} as person
+inner join pocore_foundation__person as person
     on person.person_id = membership.person_id
-inner join {{ ref('pocore_foundation__person__month_end') }} as month_end
+inner join pocore_foundation__person__month_end as month_end
     on  month_end.person_id      = membership.person_id
     and month_end.month_end_date = membership.month_end_date

@@ -38,9 +38,13 @@
 {%- set keys = ['segment_id', 'kpi_id', 'outcome_window_days'] -%}
 {%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
 
-with baselines as (
+with
 
-    select * from {{ ref('pocore_group__baselines__month') }}
+pocore_group__baselines__month as (select * from {{ ref('pocore_group__baselines__month') }}),
+
+baselines as (
+
+    select * from pocore_group__baselines__month
 
 ),
 
@@ -65,13 +69,13 @@ series as (
 eligible as (
 
     select
-        s.*,
-        l.latest_anchor_date,
-        coalesce(b.n, 0)    as n_eligible
-    from series as s
-    cross join latest as l
-    left join baselines as b
-        on {% for k in keys %}b.{{ k }} = s.{{ k }} and {% endfor %}b.anchor_date = l.latest_anchor_date
+        series.*,
+        latest.latest_anchor_date,
+        coalesce(baselines.n, 0)    as n_eligible
+    from series
+    cross join latest
+    left join baselines
+        on {% for k in keys %}baselines.{{ k }} = series.{{ k }} and {% endfor %}baselines.anchor_date = latest.latest_anchor_date
 
 ),
 
@@ -79,10 +83,10 @@ eligible as (
 ranked as (
 
     select
-        b.*,
+        baselines.*,
         row_number() over (partition by {{ keys | join(', ') }} order by anchor_date desc) as recency_rank
-    from baselines as b
-    where b.is_window_complete
+    from baselines
+    where baselines.is_window_complete
 
 ),
 
@@ -154,60 +158,60 @@ holdouts as (
 sized as (
 
     select
-        e.segment_id, {% for c in desc_cols %}e.{{ c }}, {% endfor %}
-        e.kpi_id, e.metric_type, e.outcome_window_days,
-        lk.baseline_lookback_months,
-        h.holdout_pct,
-        e.latest_anchor_date,
-        e.n_eligible,
-        coalesce(p.anchors_used, 0)                                         as anchors_used,
-        (coalesce(p.anchors_used, 0) < lk.baseline_lookback_months)         as is_short_history,
-        p.baseline_value,
-        r.baseline_recent,
-        r.revenue_gap_recent,
-        ss.baseline_same_season,
-        coalesce(ss.baseline_same_season, r.baseline_recent)               as baseline_planning,
-        case when ss.baseline_same_season is not null then 'same_season'
-             when r.baseline_recent is not null then 'recent' end          as planning_basis,
-        p.baseline_min,
-        p.baseline_max,
+        eligible.segment_id, {% for c in desc_cols %}eligible.{{ c }}, {% endfor %}
+        eligible.kpi_id, eligible.metric_type, eligible.outcome_window_days,
+        lookback_list.baseline_lookback_months,
+        holdouts.holdout_pct,
+        eligible.latest_anchor_date,
+        eligible.n_eligible,
+        coalesce(pooled.anchors_used, 0)                                         as anchors_used,
+        (coalesce(pooled.anchors_used, 0) < lookback_list.baseline_lookback_months)         as is_short_history,
+        pooled.baseline_value,
+        recent.baseline_recent,
+        recent.revenue_gap_recent,
+        seasonal.baseline_same_season,
+        coalesce(seasonal.baseline_same_season, recent.baseline_recent)               as baseline_planning,
+        case when seasonal.baseline_same_season is not null then 'same_season'
+             when recent.baseline_recent is not null then 'recent' end          as planning_basis,
+        pooled.baseline_min,
+        pooled.baseline_max,
         -- Unstable = today's normal differs a lot from the pooled history, or the
         -- history swings widely. Plan against baseline_recent when this is true.
         coalesce(
-            (p.baseline_value > 0
-                and abs(r.baseline_recent - p.baseline_value) / p.baseline_value > {{ instability_threshold }})
-            or (p.baseline_min > 0 and p.baseline_max / p.baseline_min > 2),
+            (pooled.baseline_value > 0
+                and abs(recent.baseline_recent - pooled.baseline_value) / pooled.baseline_value > {{ instability_threshold }})
+            or (pooled.baseline_min > 0 and pooled.baseline_max / pooled.baseline_min > 2),
             false)                                                          as is_unstable,
-        case when p.baseline_variance < 0 then 0 else p.baseline_variance end as baseline_variance,
-        case when r.baseline_recent_variance < 0 then 0 else r.baseline_recent_variance end as baseline_recent_variance,
-        {{ pocore_helpers__clamp("coalesce(case when ss.baseline_same_season is not null
-                               then ss.baseline_same_season_variance end,
-                          r.baseline_recent_variance)", low=0) }}           as baseline_planning_variance,
-        cast(e.n_eligible as {{ float_type }}) * h.holdout_pct / 100        as n_holdout,
-        cast(e.n_eligible as {{ float_type }}) * (100 - h.holdout_pct) / 100 as n_treatment
-    from eligible as e
-    cross join lookback_list as lk
-    left join pooled as p
-        on {% for k in keys %}p.{{ k }} = e.{{ k }} and {% endfor %}p.baseline_lookback_months = lk.baseline_lookback_months
-    left join recent as r
-        on {% for k in keys %}r.{{ k }} = e.{{ k }}{% if not loop.last %} and {% endif %}{% endfor %}
-    left join seasonal as ss
-        on {% for k in keys %}ss.{{ k }} = e.{{ k }}{% if not loop.last %} and {% endif %}{% endfor %}
-    cross join holdouts as h
+        case when pooled.baseline_variance < 0 then 0 else pooled.baseline_variance end as baseline_variance,
+        case when recent.baseline_recent_variance < 0 then 0 else recent.baseline_recent_variance end as baseline_recent_variance,
+        {{ pocore_helpers__clamp("coalesce(case when seasonal.baseline_same_season is not null
+                               then seasonal.baseline_same_season_variance end,
+                          recent.baseline_recent_variance)", low=0) }}           as baseline_planning_variance,
+        cast(eligible.n_eligible as {{ float_type }}) * holdouts.holdout_pct / 100        as n_holdout,
+        cast(eligible.n_eligible as {{ float_type }}) * (100 - holdouts.holdout_pct) / 100 as n_treatment
+    from eligible
+    cross join lookback_list
+    left join pooled
+        on {% for k in keys %}pooled.{{ k }} = eligible.{{ k }} and {% endfor %}pooled.baseline_lookback_months = lookback_list.baseline_lookback_months
+    left join recent
+        on {% for k in keys %}recent.{{ k }} = eligible.{{ k }}{% if not loop.last %} and {% endif %}{% endfor %}
+    left join seasonal
+        on {% for k in keys %}seasonal.{{ k }} = eligible.{{ k }}{% if not loop.last %} and {% endif %}{% endfor %}
+    cross join holdouts
 
 ),
 
 with_mde as (
 
     select
-        s.*,
+        sized.*,
         case when n_holdout >= 1 and n_treatment >= 1
              then {{ z_total }} * sqrt(baseline_variance * (1 / n_treatment + 1 / n_holdout)) end        as mde_abs,
         case when n_holdout >= 1 and n_treatment >= 1
              then {{ z_total }} * sqrt(baseline_recent_variance * (1 / n_treatment + 1 / n_holdout)) end as mde_abs_recent,
         case when n_holdout >= 1 and n_treatment >= 1
              then {{ z_total }} * sqrt(baseline_planning_variance * (1 / n_treatment + 1 / n_holdout)) end as mde_abs_planning
-    from sized as s
+    from sized
 
 )
 

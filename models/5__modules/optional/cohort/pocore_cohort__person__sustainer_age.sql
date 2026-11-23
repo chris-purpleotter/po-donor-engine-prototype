@@ -1,4 +1,4 @@
-{{ config(enabled=pocore_client_config__module_enabled('sustainers')) }}
+{{ config(enabled=pocore_client_config__module_enabled('cohort')) }}
 
 {#
   pocore_cohort__person__sustainer_age — ONE ROW PER SUSTAINER x MONTH SINCE THEY STARTED.
@@ -20,20 +20,26 @@
 
 {%- set max_months = (var('sustainer_survival_months') + var('sustainer_ltv_horizons_months')) | max -%}
 
-with recurring_gifts as (
+with
+
+pocore_foundation__gift as (select * from {{ ref('pocore_foundation__gift') }}),
+
+pocore_foundation__person as (select * from {{ ref('pocore_foundation__person') }}),
+
+recurring_gifts as (
 
     select
-        g.person_id,
-        cast({{ dbt.date_trunc('month', 'g.gift_date') }} as date)   as month_start,
-        g.amount,
-        (not g.is_refund and g.amount > 0)                            as is_payment
-    from {{ ref('pocore_foundation__gift') }} as g
-    inner join {{ ref('pocore_foundation__person') }} as person
-        on person.person_id = g.person_id
-    where g.gift_type = 'recurring'
-      and g.is_kpi_eligible
+        pocore_foundation__gift.person_id,
+        cast({{ dbt.date_trunc('month', 'pocore_foundation__gift.gift_date') }} as date)   as month_start,
+        pocore_foundation__gift.amount,
+        (not pocore_foundation__gift.is_refund and pocore_foundation__gift.amount > 0)                            as is_payment
+    from pocore_foundation__gift
+    inner join pocore_foundation__person as person
+        on person.person_id = pocore_foundation__gift.person_id
+    where pocore_foundation__gift.gift_type = 'recurring'
+      and pocore_foundation__gift.is_kpi_eligible
       and person.person_type = 'individual'
-      and g.gift_date <= {{ pocore_client_config__as_of_date() }}
+      and pocore_foundation__gift.gift_date <= {{ pocore_client_config__as_of_date() }}
 
 ),
 
@@ -61,35 +67,35 @@ gift_months as (
 month_numbers as (
 
     select cast(generated_number as {{ dbt.type_int() }}) as month_number
-    from ({{ dbt.generate_series(max_months) }}) as s
+    from ({{ dbt.generate_series(max_months) }}) as series
 
 ),
 
 sustainer_months as (
 
     select
-        s.person_id,
-        s.start_month,
-        m.month_number,
-        cast({{ dbt.dateadd('month', '(m.month_number - 1)', 's.start_month') }} as date) as month_start
-    from starts as s
-    cross join month_numbers as m
+        starts.person_id,
+        starts.start_month,
+        month_numbers.month_number,
+        cast({{ dbt.dateadd('month', '(month_numbers.month_number - 1)', 'starts.start_month') }} as date) as month_start
+    from starts
+    cross join month_numbers
 
 )
 
 select
-    sm.person_id,
-    sm.start_month,
-    {{ pocore_helpers__fiscal_year('sm.start_month') }}                             as start_year,
-    sm.month_number,
-    sm.month_start,
-    coalesce(gm.payments, 0) > 0                                         as gave,
-    coalesce(gm.amount, 0)                                               as amount,
+    sustainer_months.person_id,
+    sustainer_months.start_month,
+    {{ pocore_helpers__fiscal_year('sustainer_months.start_month') }}                             as start_year,
+    sustainer_months.month_number,
+    sustainer_months.month_start,
+    coalesce(gift_months.payments, 0) > 0                                         as gave,
+    coalesce(gift_months.amount, 0)                                               as amount,
     -- month k is over when the first day of the NEXT month is at most the day after as_of
-    cast({{ dbt.dateadd('month', 1, 'sm.month_start') }} as date)
+    cast({{ dbt.dateadd('month', 1, 'sustainer_months.month_start') }} as date)
         <= cast({{ dbt.dateadd('day', 1, pocore_client_config__as_of_date()) }} as date)          as is_observed
-from sustainer_months as sm
-left join gift_months as gm
-    on  gm.person_id    = sm.person_id
-    and gm.month_start = sm.month_start
-where sm.month_start <= {{ pocore_client_config__as_of_date() }}
+from sustainer_months
+left join gift_months
+    on  gift_months.person_id    = sustainer_months.person_id
+    and gift_months.month_start = sustainer_months.month_start
+where sustainer_months.month_start <= {{ pocore_client_config__as_of_date() }}

@@ -15,10 +15,16 @@
                     (null for gifts before the snapshot history starts)
 #}
 
-with snapshots as (
+with
+
+pocore_rollup__person__month_end_lookback as (select * from {{ ref('pocore_rollup__person__month_end_lookback') }}),
+
+pocore_event__gift as (select * from {{ ref('pocore_event__gift') }}),
+
+snapshots as (
 
     select person_id, snapshot_date, lifecycle_stage
-    from {{ ref('pocore_rollup__person__month_end_lookback') }}
+    from pocore_rollup__person__month_end_lookback
 
 ),
 
@@ -28,39 +34,39 @@ gift_months as (
     select
         gift_id,
         cast({{ dbt.dateadd('day', -1, dbt.date_trunc('month', 'gift_date')) }} as date) as previous_month_end
-    from {{ ref('pocore_event__gift') }}
+    from pocore_event__gift
 
 )
 
 select
-    g.gift_id,
-    g.person_id,
-    g.gift_date,
-    g.amount,
-    g.gift_type,
-    g.recurring_schedule_id,
-    g.is_refund,
-    g.gift_category,
-    g.is_kpi_eligible,
-    g.exclusion_reason,
-    g.source_system,
-    g.source_record_id,
+    pocore_event__gift.gift_id,
+    pocore_event__gift.person_id,
+    pocore_event__gift.gift_date,
+    pocore_event__gift.amount,
+    pocore_event__gift.gift_type,
+    pocore_event__gift.recurring_schedule_id,
+    pocore_event__gift.is_refund,
+    pocore_event__gift.gift_category,
+    pocore_event__gift.is_kpi_eligible,
+    pocore_event__gift.exclusion_reason,
+    pocore_event__gift.source_system,
+    pocore_event__gift.source_record_id,
     {%- for c in var('gifts_extra_columns') %}
-    g.attr_{{ c }},
+    pocore_event__gift.attr_{{ c }},
     {%- endfor %}
 
     -- engine definitions
-    g.is_qualifying,
-    g.is_recurring_payment,
-    g.gift_number,
-    g.is_first_gift,
-    g.is_reactivation_gift,
-    g.previous_gift_date,
-    g.days_since_previous_gift,
-    s.lifecycle_stage                    as stage_at_gift
-from {{ ref('pocore_event__gift') }} as g
-inner join gift_months as gm
-    on gm.gift_id = g.gift_id
-left join snapshots as s
-    on  s.person_id     = g.person_id
-    and s.snapshot_date = gm.previous_month_end
+    pocore_event__gift.is_qualifying,
+    pocore_event__gift.is_recurring_payment,
+    pocore_event__gift.gift_number,
+    pocore_event__gift.is_first_gift,
+    pocore_event__gift.is_reactivation_gift,
+    pocore_event__gift.previous_gift_date,
+    pocore_event__gift.days_since_previous_gift,
+    snapshots.lifecycle_stage                    as stage_at_gift
+from pocore_event__gift
+inner join gift_months
+    on gift_months.gift_id = pocore_event__gift.gift_id
+left join snapshots
+    on  snapshots.person_id     = pocore_event__gift.person_id
+    and snapshots.snapshot_date = gift_months.previous_month_end

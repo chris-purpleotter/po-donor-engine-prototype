@@ -16,7 +16,11 @@
 #}
 
 
-with person_years as (
+with
+
+pocore_movement__person__year as (select * from {{ ref('pocore_movement__person__year') }}),
+
+person_years as (
 
     select
         person_id,
@@ -27,7 +31,7 @@ with person_years as (
         previous_giving_year,
         donor_status,
         years_lapsed_before_reactivation
-    from {{ ref('pocore_movement__person__year') }}
+    from pocore_movement__person__year
 
 ),
 
@@ -49,14 +53,14 @@ cohort_sizes as (
 cohort_years as (
 
     select
-        c.cohort_year,
-        cast(c.cohort_year + (s.generated_number - 1) as {{ dbt.type_int() }}) as fiscal_year,
-        c.cohort_size,
-        b.current_year
-    from cohort_sizes as c
-    cross join ({{ dbt.generate_series(200) }}) as s
-    cross join bounds as b
-    where c.cohort_year + (s.generated_number - 1) <= b.current_year
+        cohort_sizes.cohort_year,
+        cast(cohort_sizes.cohort_year + (series.generated_number - 1) as {{ dbt.type_int() }}) as fiscal_year,
+        cohort_sizes.cohort_size,
+        bounds.current_year
+    from cohort_sizes
+    cross join ({{ dbt.generate_series(200) }}) as series
+    cross join bounds
+    where cohort_sizes.cohort_year + (series.generated_number - 1) <= bounds.current_year
 
 ),
 
@@ -79,20 +83,20 @@ status_counts as (
 
 select
     'first_gift'                                                        as cohort_type,
-    cy.cohort_year,
-    cy.fiscal_year,
-    cy.fiscal_year - cy.cohort_year                                     as years_since_acquisition,
-    cy.cohort_size,
-    coalesce(s.total_donors, 0)                                         as total_donors,
-    coalesce(s.new_donors, 0)                                           as new_donors,
-    coalesce(s.second_year_donors, 0)                                   as second_year_donors,
-    coalesce(s.continuing_donors, 0)                                    as continuing_donors,
-    coalesce(s.reactivated_donors, 0)                                   as reactivated_donors,
-    coalesce(s.reactivated_second_year_donors, 0)                       as reactivated_second_year_donors,
-    cast(coalesce(s.total_donors, 0) as {{ dbt.type_float() }}) / cy.cohort_size as pct_of_cohort,
-    coalesce(s.revenue, 0)                                              as revenue,
-    (cy.fiscal_year = cy.current_year)                                  as is_partial_year
-from cohort_years as cy
-left join status_counts as s
-    on  s.cohort_year = cy.cohort_year
-    and s.fiscal_year = cy.fiscal_year
+    cohort_years.cohort_year,
+    cohort_years.fiscal_year,
+    cohort_years.fiscal_year - cohort_years.cohort_year                                     as years_since_acquisition,
+    cohort_years.cohort_size,
+    coalesce(status_counts.total_donors, 0)                                         as total_donors,
+    coalesce(status_counts.new_donors, 0)                                           as new_donors,
+    coalesce(status_counts.second_year_donors, 0)                                   as second_year_donors,
+    coalesce(status_counts.continuing_donors, 0)                                    as continuing_donors,
+    coalesce(status_counts.reactivated_donors, 0)                                   as reactivated_donors,
+    coalesce(status_counts.reactivated_second_year_donors, 0)                       as reactivated_second_year_donors,
+    cast(coalesce(status_counts.total_donors, 0) as {{ dbt.type_float() }}) / cohort_years.cohort_size as pct_of_cohort,
+    coalesce(status_counts.revenue, 0)                                              as revenue,
+    (cohort_years.fiscal_year = cohort_years.current_year)                                  as is_partial_year
+from cohort_years
+left join status_counts
+    on  status_counts.cohort_year = cohort_years.cohort_year
+    and status_counts.fiscal_year = cohort_years.fiscal_year

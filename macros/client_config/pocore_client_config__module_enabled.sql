@@ -1,8 +1,8 @@
 {#
   Optional modules (SPEC §6.6). A module's models call this in their config:
-    {{ config(enabled=pocore_client_config__module_enabled('sustainers')) }}
+    {{ config(enabled=pocore_client_config__module_enabled('cohort')) }}
   Client switch (their dbt_project.yml):
-    vars: {po_core: {modules: {sustainers: false}}}
+    vars: {po_core: {modules: {cohort: false}}}
   Modules default to on. Unknown module names are an error (catches typos in the var).
 
   Rule for engine authors: nothing outside a module may ref() a model inside it, or dbt
@@ -14,11 +14,11 @@
 #}
 
 {% macro pocore_client_config__module_enabled(module) %}
-    {%- set known_modules = ['sustainers', 'pack'] -%}
+    {%- set known_modules = ['cohort', 'insights'] -%}
     {%- set modules = var('modules', {}) or {} -%}
     {%- for m in modules -%}
         {%- if m not in known_modules -%}
-            {{ exceptions.raise_compiler_error("po_core: unknown module '" ~ m ~ "' in var 'modules'. Known: " ~ known_modules) }}
+            {{ exceptions.raise_compiler_error("po_core: unknown module '" ~ m ~ "' in var 'modules'. Only optional modules can be switched off: " ~ known_modules | join(', ')) }}
         {%- endif -%}
     {%- endfor -%}
     {%- if module not in known_modules -%}

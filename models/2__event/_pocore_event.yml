@@ -1,0 +1,35 @@
+version: 2
+
+# EVENT: one row per thing that happened (a gift), labelled with the engine's definitions.
+# No aggregation. Rollups and the foundation read gifts ONLY from here.
+
+models:
+  - name: pocore_event__gift
+    description: >
+      One row per gift: every gift and refund in the contract, eligible or not. The gift's own
+      columns (amount, type, refund, eligibility, lineage, attr_* extras) plus the engine's
+      gift-level definitions below. The single source of those definitions, so they can't drift.
+    columns:
+      - name: gift_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('pocore_entity__person'), field: person_id}
+      - name: is_qualifying
+        description: "Counts as 'gave' (measure `gave`): eligible, not a refund, and one-time or the first payment of a recurring schedule (a new sign-up). Routine recurring payments are false."
+      - name: is_recurring_payment
+        description: "An eligible, non-refund recurring payment (measure `retained`, sustainer status)."
+      - name: is_first_recurring_payment
+        description: "The first eligible payment we can see in a recurring schedule: a new monthly sign-up (measure `started_monthly`)."
+      - name: gift_number
+        description: "1, 2, 3 ... among the person's eligible, non-refund gifts, by date then gift_id. Null for refunds and ineligible gifts."
+      - name: is_first_gift
+        description: "gift_number = 1: the person's first eligible, non-refund gift."
+      - name: previous_gift_date
+        description: "The date of the person's previous eligible, non-refund gift. Null for the first gift."
+      - name: days_since_previous_gift
+        description: "Days from previous_gift_date to this gift."
+      - name: is_reactivation_gift
+        description: "A win-back: an eligible, non-refund gift more than 365 days (pocore_engine_config__active_days) after the person's previous one. First gifts never count."

@@ -1,6 +1,6 @@
 {#
   Custom rollups (client var `rollups`): extra person-level columns built from a row-level
-  source, as of each month-end, so segment rules and pack dropdowns can use gift facts.
+  source, as of each month-end, so segment rules and report dropdowns can use gift facts.
 
       rollups:
         - {source: gift, agg: count, label: 100_plus, where: "amount >= 100", window: lifetime}

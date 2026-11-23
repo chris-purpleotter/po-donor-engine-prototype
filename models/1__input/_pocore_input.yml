@@ -50,7 +50,7 @@ models:
           - not_null:
               config: {severity: warn}
 
-  - name: pocore_input__person_attributes
+  - name: pocore_input__people_attr
     description: >
       Client-chosen extra donor columns (var people_extra_columns), from the same conform model
       as pocore_input__people, renamed attr_<name>. Not contracted. Flows into the donor snapshot for
@@ -66,7 +66,7 @@ models:
                 to: ref('pocore_input__people')
                 field: person_id
 
-  - name: pocore_input__gift_attributes
+  - name: pocore_input__gifts_attr
     description: >
       Client-chosen extra gift columns (var gifts_extra_columns), from the same conform model as
       pocore_input__gifts, renamed attr_<name>. Not contracted. Gift-level only on day one.
@@ -148,25 +148,3 @@ models:
         data_tests:
           - not_null:
               config: {severity: warn}
-
-  - name: pocore_input__person_identities
-    description: >
-      The identity crosswalk (v0.4.0): one row per source record -> the person it belongs to.
-      From the client's var person_identities_model when set (several source records per person,
-      e.g. a CRM contact and an email-tool contact resolved to one person); otherwise built from
-      the people contract's own source_system / source_record_id (one identity per person).
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['source_system', 'source_record_id']}
-    columns:
-      - name: source_system
-        data_tests: [not_null]
-      - name: source_record_id
-        data_tests: [not_null]
-      - name: person_id
-        data_tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('pocore_input__people')
-                field: person_id

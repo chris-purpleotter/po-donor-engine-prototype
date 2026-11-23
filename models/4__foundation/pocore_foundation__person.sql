@@ -8,4 +8,8 @@
   in a month / year" on the _span tables; join on person_id.
 #}
 
-select * from {{ ref('pocore_entity__person') }}
+with
+
+pocore_entity__person as (select * from {{ ref('pocore_entity__person') }})
+
+select * from pocore_entity__person

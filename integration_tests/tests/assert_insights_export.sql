@@ -1,6 +1,6 @@
-{{ config(enabled=po_core.pocore_client_config__module_enabled('pack')) }}
+{{ config(enabled=po_core.pocore_client_config__module_enabled('insights')) }}
 
--- Supporter Insights export (as_of = 2026-09-30, pack var in dbt_project.yml). Zero rows = pass.
+-- Supporter Insights export (as_of = 2026-09-30, insights var in dbt_project.yml). Zero rows = pass.
 -- Population now (individuals, not deceased): D01-D07, D10 = 8 people.
 --   Stage: lapsed 4 (D01, D04, D06, D10), deep_lapsed 1 (D02), active 1 (D03), sustainer 1 (D05), prospect 1 (D07)
 --   (the cube holds the stage LABELS: lifecycle_stage gets the engine's labels as bands, v0.3.6)
@@ -8,7 +8,7 @@
 -- The 'now' cube rows must add up to exactly that, and each combination appears once per period.
 
 with cube as (
-    select * from {{ ref('pocore_export__pack_cube') }}
+    select * from {{ ref('pocore_export__insights_cube') }}
 ),
 
 expected as (
@@ -46,7 +46,7 @@ dupes as (
 
 settings as (
     select setting as kind, value, 'setting' as problem
-    from {{ ref('pocore_export__pack_settings') }}
+    from {{ ref('pocore_export__insights_settings') }}
     where (setting = 'window_days' and value <> '90')
        or (setting = 'client_name' and value <> 'Integration test (who''s tested)')
        or (setting = 'as_of' and value <> '2026-09-30')
@@ -55,7 +55,7 @@ settings as (
 
 dims as (
     select 'dimensions' as kind, cast(count(*) as {{ dbt.type_string() }}) as value, 'expected 9 rows (6 stage bands + 1 plain + 2 bands)' as problem
-    from {{ ref('pocore_export__pack_dimensions') }}
+    from {{ ref('pocore_export__insights_dimensions') }}
     having count(*) <> 9
 )
 

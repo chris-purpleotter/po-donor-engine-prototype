@@ -1,4 +1,4 @@
-{{ config(enabled=pocore_client_config__module_enabled('sustainers')) }}
+{{ config(enabled=pocore_client_config__module_enabled('cohort')) }}
 
 {#
   pocore__cohort__age — ONE ROW PER SUSTAINER COHORT x MONTH OF LIFE (whole cohorts).
@@ -14,6 +14,10 @@
   First-gift cohorts by fiscal year: pocore__cohort__year. By acquisition channel:
   pocore__cohort__age__breakdown.
 #}
+
+with
+
+pocore_cohort__sustainer__age as (select * from {{ ref('pocore_cohort__sustainer__age') }})
 
 select
     cohort_type,
@@ -31,5 +35,5 @@ select
     cost_per_new_sustainer,
     paid_ltv_to_date,
     paid_ltv_to_date / nullif(cost_per_new_sustainer, 0) as ltv_to_cpa
-from {{ ref('pocore_cohort__sustainer__age') }}
+from pocore_cohort__sustainer__age
 where breakdown_by = 'all'
