@@ -34,7 +34,8 @@ bounds as (
 days as (
 
     select
-        cast({{ dbt.dateadd('day', 'series.generated_number - 1', 'bounds.first_day') }} as date) as date_day
+        {# generated_number is FLOAT64 on BigQuery (dbt builds it with power()); INTERVAL needs a whole number #}
+        cast({{ dbt.dateadd('day', 'cast(series.generated_number as ' ~ dbt.type_int() ~ ') - 1', 'bounds.first_day') }} as date) as date_day
     from bounds
     cross join ({{ dbt.generate_series(40000) }}) as series     -- up to ~109 years of history
 
