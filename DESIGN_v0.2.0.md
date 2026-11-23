@@ -105,7 +105,7 @@ The client never picks modules. They deliver contract inputs, and the engine bui
 **Mechanics:**
 - **`enabled` is the gate, not tags.** Module models start with `config(enabled = pocore_client_config__module_enabled('<module>'))`. A disabled model doesn't exist in the project, and dbt refuses at compile time if an enabled model depends on it. The client runs a plain `dbt build`. Tags (`tag:pocore_<module>`) are labels for selection, docs and BI, never the gate: a tag-excluded model still exists, and anything referencing it fails at run time.
 - **`pocore_client_config__module_enabled()` reads the contract:** a module is on when its input var is configured. This extends today's `modules:` var and `pode_module_enabled()`.
-- **Opinion modules** are the only explicit switches: modules that need no new data but may not be relevant (e.g. `sustainers: false` for a client without a monthly-giving programme). They default to on when the data supports them.
+- **Opinion modules** are the only explicit switches: modules that need no new data but may not be relevant (e.g. `cohort`, formerly `sustainers: false` for a client without a monthly-giving programme). They default to on when the data supports them.
 - **Tables disappear, columns don't.** When a module is off, its whole tables are disabled, but its columns on shared tables stay as NULL (rule 6). Dashboards and custom models never break when a module is turned on or off.
 - **Configured ≠ good.** Supplying an input switches its module on. Health checks report fill rates per input and column, so a thin input is visible rather than silently producing weak numbers. Contract tests stay the hard gate.
 
@@ -367,13 +367,13 @@ segment_sets:
 
 ## v0.3.1: Supporter Insights export (2026-11-18)
 
-- **New tier `export`** (schema `pocore`, module `pack`, on by default): tables shaped for one consumer, Supporter Insights (`pocore-pack`, its own repo).
-  - `pocore_export__pack_cube`: one row per period (now / recent / same_season) × combination of the client's dropdown values; people, gave, revenue of givers and non-givers. Counts and sums only. Portable SQL (dbt macros), tested: the "now" rows add up to the population.
-  - `pocore_export__pack_settings`: client name, window, holdout, minimum group size, engine version, as_of.
-  - `pocore_export__pack_dimensions`: the dropdowns and bands, including the band SQL the pack writes into the segment rules it generates.
-- **All client config lives in the client's dbt project** (`vars: po_core: pack:`; defaults and validation in `macros/client_config/pocore_client_config__pack_settings.sql`). The engine and the pack are client-agnostic.
-- **The pack reads through dbt** (`dbt show`, using the client's profiles.yml and environment login): no credentials of its own, no warehouse-specific code. It checks `engine_version` and fails clearly if incompatible.
-- **Delivery:** a step right after `dbt build` in the client's job (`pocore-pack build --project-dir . --target prod`), so a pack only ships when the engine's tests pass. Engine pinned by git tag, pack by version (also a git tag); both semver.
+- **New tier `export`** (schema `pocore`, module `pack`, on by default): tables shaped for one consumer, Supporter Insights (`pocore-insights`, its own repo).
+  - `pocore_export__insights_cube`: one row per period (now / recent / same_season) × combination of the client's dropdown values; people, gave, revenue of givers and non-givers. Counts and sums only. Portable SQL (dbt macros), tested: the "now" rows add up to the population.
+  - `pocore_export__insights_settings`: client name, window, holdout, minimum group size, engine version, as_of.
+  - `pocore_export__insights_dimensions`: the dropdowns and bands, including the band SQL the report writes into the segment rules it generates.
+- **All client config lives in the client's dbt project** (`vars: po_core: pack:`; defaults and validation in `macros/client_config/pocore_client_config__insights_settings.sql`). The engine and the report are client-agnostic.
+- **The report reads through dbt** (`dbt show`, using the client's profiles.yml and environment login): no credentials of its own, no warehouse-specific code. It checks `engine_version` and fails clearly if incompatible.
+- **Delivery:** a step right after `dbt build` in the client's job (`pocore-insights build --project-dir . --target prod`), so a pack only ships when the engine's tests pass. Engine pinned by git tag, pack by version (also a git tag); both semver.
 
 ---
 
@@ -381,13 +381,13 @@ segment_sets:
 
 - **v0.3.2** `standard_splits`: break down the standard groups from config (no duplicate custom copies).
 - **v0.3.3** person features `reactivations_lifetime`, `days_since_reactivation` (as of each month-end); one shared column list (`pocore_snapshot_columns`) for `foundation__person` and `foundation__person__month`, with a test that the two agree on every shared column.
-- **v0.3.4** actual (uncapped) revenue per person on `pocore__segment__month`; `revenue_cap` in the pack settings.
+- **v0.3.4** actual (uncapped) revenue per person on `pocore__segment__month`; `revenue_cap` in the report settings.
 - **v0.3.5** a third measure, `started_monthly`: signed up to a new monthly plan within 30/90/180/365 days (gift flag `is_first_recurring_payment`). Groups can use it as their `primary_kpi`.
 - **v0.3.6** "Planning Pack" renamed Supporter Insights. One list per engine concept, so a new one is added in one place:
-  - `pocore_engine_config__measures()`: every group measure, with how it reads ("gave within {days} days") and whether its windows add up (false for `retained`). Exported as `pocore_export__pack_measures`; the pack words its charts from it.
+  - `pocore_engine_config__measures()`: every group measure, with how it reads ("gave within {days} days") and whether its windows add up (false for `retained`). Exported as `pocore_export__insights_measures`; the report words its charts from it.
   - `pocore_engine_config__active_days()` (365): the single 12-month line behind "active", "lapsed" (twice it) and a win-back gift.
-  - `pocore_engine_config__lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` pack dimension without bands gets these labels as bands. A test fails if a stage has no label.
-- **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the pack. Primary choices single-sourced in `pocore_sql__primary_choices()` (shared with `pocore__segment`).
+  - `pocore_engine_config__lifecycle_stages()`: stage labels and order. The stage logic stays written out in the person snapshot; a `lifecycle_stage` insights dimension without bands gets these labels as bands. A test fails if a stage has no label.
+- **v0.3.7** the group's own measure on `pocore__segment__month`: `primary_kpi`, `primary_window_days`, `primary_rate` / `primary_count` / `is_primary_complete` (headline window) and `primary_rate_<N>d` / `primary_count_<N>d` (every window). Simple questions ("this group's rate over time") need no CASE over measure columns, in SQL, BI tools or the report. Primary choices single-sourced in `pocore_sql__primary_choices()` (shared with `pocore__segment`).
 - **v0.3.8** what `ftr` means, and custom rollups.
   - **`ftr` = one model per "what one row is".** Row-level, one per input source: `pocore_event__gift` (was `gift_flags`; now carries the gift's contract columns plus the engine's definitions). Person × month-end: `pocore_rollup__person__month_end_lookback` (was `person_snapshot`; looking back) and `pocore_rollup__person__month_end_lookahead` (was `kpi_outcomes`; looking ahead).
   - **Source rule:** person-level models read a source only through its row-level `ftr` model (gifts only from `pocore_event__gift`, never `pocore_input__gifts`), so each definition lives once.
@@ -416,6 +416,24 @@ input -> event  (what happened)  -> rollup (one person, per period) -> foundatio
 
 Only `entity`, `event` and `admin` (which checks the inputs) read `input`.
 
+**Folders are numbered by step** so the file tree shows the order: `1__input`, `2__entity` and
+`2__event` (parallel lanes share a number), `3__rollup`, `4__foundation`, `5__modules`, `9__admin`
+(checks on everything, so it sits apart). Model names don't carry the numbers.
+
+**The foundation is the only base; certified is a tier, not a step.** Every module reads only the
+foundation and keeps its private workings in its folder and its PUBLIC outputs in a `certified/`
+subfolder (schema `pocore`, tag `pocore_certified`): `5__modules/required/group/certified/`
+(pocore__segment, __segment__month, __segment__test_option, __person__segment),
+`.../movement/certified/` (pocore__year, __cohort__year, __person__year),
+`5__modules/optional/cohort/certified/` (pocore__cohort__age, __age__breakdown). Analysts and BI use
+the foundation and certified tables only; module workings and earlier steps are internal.
+
+**Input naming** (one pair per source): `input__<source>` is the contract (enforced columns and types);
+`input__<source>_attr` carries that source's client-chosen extra columns as `attr_*` (not enforced, so
+the contract stays strict). The settings follow the same source word: `<source>_model`,
+`<source>_extra_columns`. E.g. `input__people` / `input__people_attr`, later `input__email_sends` /
+`input__email_sends_attr`.
+
 **Macros** (v0.5.0; one per file, named `pocore_<folder>__<name>` so the name says what kind it is):
 `engine_config/` the engine's fixed settings (windows, the 12-month line, measures, stages, standard
 groups, what counts as giving, version): change rarely, for every client; `client_config/` reads and
@@ -427,22 +445,23 @@ Client setup never edits a macro: it's always `vars`. **Breaking in v0.5.0:** co
 **Reserved third lane: `interval`** (not built; add it with the first source that needs it, likely
 `recurring_schedules`). For things true over a stretch of time (a monthly giving plan from start to
 cancel, a membership, a volunteer role): `interval__<thing>`, one row per stretch with `valid_from` /
-`valid_to`. Intervals can't be summed per period as-is, so `rollup` converts them first: into spans
+`valid_to`. Intervals can't be summed per period as-is, so `rollup` converts them first: into per-period values
 ("active days in the month") or moments ("active at month-end"). Everything else fits the two lanes:
 other things that exist (campaigns, funds) and links between them (households) are `entity`; other
 things that happen on a date (email sends, attendance) are `event`; reference figures (finance
 totals, budgets) are read by `admin` or a module directly.
 
 **Rollup kinds** (the name says how to add it up):
-- `__month_span`, `__year_span`: counts and sums of events *inside* a period. Spans don't overlap, so **sum freely** across people and time.
+- (v0.6.0: the `__month_span` / `__year_span` tables were removed. "What happened in a period" is the gift fact plus the calendar. A monthly sum may come back later as an INTERNAL rollup building block, only if the lookback ever needs it for speed.)
 - `__month_end_lookback` / `__month_end_lookahead`: a *moment* (as of / after a month-end). **Never sum across time**; sum across people at one month-end only.
 
 **The foundation star** (the contract clients and modules build on):
-- dimension `foundation__person` (who they are now, plus lineage); bridge `foundation__person_identity` (source record → person)
-- facts: `foundation__gift` (transaction), `__person__month_span` and `__person__year_span` (spans), `__person__month_end` (snapshot: lookback + lookahead)
+- dimension `foundation__person` (who they are now, plus lineage)
+- dimension `foundation__date` (the calendar: one row per day, with month, fiscal year and is_latest_month_end)
+- facts: `foundation__gift` ("what happened": sum freely over people and time) and `__person__month_end` ("where they stood": a snapshot, never summed across month-ends)
 - no copied attributes: join `foundation__person` on `person_id`.
 
-**Modules** (use cases on top; each reads only the foundation):
+**Modules** (use cases on top; each reads only the foundation). `models/5__modules/required/` (group, movement) are always built: the certified tables depend on them. `models/5__modules/optional/` (cohort, pack) each have a switch in var `modules`.
 - `group`: segments. `group__membership__month` (rules see person attributes and looking-back state only, so they can't peek), `group__segment` (dimension), `group__baselines__month`, `group__power`, `group__flows__month`.
 - `cohort`: people who started together, by age (`cohort__person__sustainer_age`, `cohort__sustainer__age`).
 - `movement`: yearly donor status (`movement__person__year`).
@@ -450,7 +469,7 @@ totals, budgets) are read by `admin` or a module directly.
 
 Certified gains the two person-level convenience tables that left foundation: `pocore__person__segment` (the roster) and `pocore__person__year` (the journey).
 
-**Lineage:** `source_system` and `source_record_id` on people and gifts (required columns, may be empty, warned). **Identity crosswalk:** optional input `person_identities_model` (source record → person); without it, one identity per person from the people contract.
+**Lineage:** `source_system` and `source_record_id` on people and gifts (required columns, may be empty, warned). **Identity resolution is conforming work** (removed from the engine in v0.6.0): conform decides who's who and puts the resolved `person_id` on every input; the engine assumes it and never matches people itself.
 
 **Groups vs cohorts:** groups slide (re-evaluated at every month-end, measured from the calendar); cohorts are anchored (assigned once from an event, measured by each person's age since it).
 

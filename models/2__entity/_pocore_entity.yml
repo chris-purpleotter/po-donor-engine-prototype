@@ -1,0 +1,11 @@
+version: 2
+
+# ENTITY: one row per thing that exists (a person), with its attributes as they are now.
+# Reads input only; everything downstream reads people from here.
+
+models:
+  - name: pocore_entity__person
+    description: "One row per person: contract attributes, attr_* columns and lineage, joined once. The slot for engine-standard person attributes."
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id']}

@@ -1,0 +1,45 @@
+version: 2
+
+# EXPORT (v0.3.1): tables shaped for one consumer, Supporter Insights (pocore-insights). Built from
+# foundation in the same run as everything else, so the report can never be out of step with the
+# certified tables. Module 'insights' (on by default). Schema: pocore, next to certified.
+
+models:
+  - name: pocore_export__insights_cube
+    description: >
+      One row per period (now / recent / same_season) x combination of the client's insights
+      dimension values: people, gave (within insights.window_days), revenue of givers and non-givers.
+      Counts and sums only. Population: individuals, not deceased. The 'now' rows add up to
+      everyone in the population at the latest month-end (tested).
+    columns:
+      - name: period
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['now', 'recent', 'same_season']
+      - name: people
+        data_tests: [not_null]
+
+  - name: pocore_export__insights_settings
+    description: "One row per Supporter Insights setting (client_name, window_days, holdout_pct, min_group_size, engine_version, as_of)."
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['setting']}
+
+  - name: pocore_export__insights_dimensions
+    description: >
+      The report's "Build a population" dropdowns in order: one row per plain dimension, or per band
+      of a banded one. band_sql is the SQL the report writes into the segment rules it generates.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['dimension', 'band_position']}
+
+  - name: pocore_export__insights_measures
+    description: >
+      One row per group measure (primary_kpi), from macro pocore_engine_config__measures: measure_name ("gave"),
+      phrase with a {days} placeholder ("gave within {days} days") and adds_up (a longer window
+      always includes a shorter one; false for retained). The report words its charts from this.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['kpi_id']}

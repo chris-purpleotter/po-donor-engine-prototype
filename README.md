@@ -107,7 +107,6 @@ Each one unlocks more, and nothing breaks without it:
 |---|---|---|
 | `finance_totals` (fiscal year, revenue) | reconciliation against finance | available |
 | `people.acquisition_cost` (as an extra column) | cost per new monthly donor, LTV:CPA | available |
-| `person_identities` (source system, source record id, person id) | one person across several systems (CRM + email tool ...), traced back to every source record | available (v0.4.0); without it, one identity per person |
 | `recurring_schedules` (plan id, person, start, cancel date, cancel reason) | exact monthly-giver status, plan-based lapse and restart | planned: today monthly-giver status is inferred from recurring payments |
 
 The diagram shows where `recurring_schedules` will sit once it's built.

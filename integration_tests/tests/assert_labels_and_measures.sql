@@ -1,15 +1,15 @@
-{{ config(enabled=po_core.pocore_client_config__module_enabled('pack')) }}
+{{ config(enabled=po_core.pocore_client_config__module_enabled('insights')) }}
 
 -- v0.3.6: the engine's single lists (pocore_engine_config__lifecycle_stages, pocore_engine_config__measures) cover everything
--- the engine actually produces, so the pack never shows a raw id or an unworded measure.
+-- the engine actually produces, so the report never shows a raw id or an unworded measure.
 -- Zero rows = pass.
 
 with stage_bands as (
-    select band_sql from {{ ref('pocore_export__pack_dimensions') }} where dimension = 'lifecycle_stage'
+    select band_sql from {{ ref('pocore_export__insights_dimensions') }} where dimension = 'lifecycle_stage'
 ),
 
 measures as (
-    select * from {{ ref('pocore_export__pack_measures') }}
+    select * from {{ ref('pocore_export__insights_measures') }}
 ),
 
 -- every stage the snapshot produces has a label (a band in the Lifecycle stage dropdown)

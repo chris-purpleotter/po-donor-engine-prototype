@@ -1,0 +1,42 @@
+version: 2
+
+# MODULE cohort: certified outputs.
+# CERTIFIED = a module's PUBLIC outputs: reliable and OPINIONATED, for business users and dashboards
+# (schema `pocore`, tag pocore_certified). Built from this module's workings, which read only the
+# foundation. Rules: the table name states the grain (at most three levels); keys are tested unique;
+# standard columns are the same for every client; rates come with their numerators and denominators.
+
+models:
+  - name: pocore__cohort__age
+    description: >
+      One row per sustainer cohort x month of life (cohort_type = 'first_recurring'; cohort_year =
+      fiscal year of the first recurring payment; age_months 1 = that month). Survival
+      (sustainers_giving / sustainers_observed), LTV to date, and when acquisition cost is supplied
+      CPA and LTV:CPA. sustainers_started is the cohort size, repeated on every row: don't sum it
+      over ages. Sustainers module only.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['cohort_type', 'cohort_year', 'age_months']}
+    columns: &cohort_age_columns
+      - name: sustainers_observed
+        description: "Starters who have reached this month of life (it has fully happened)."
+      - name: sustainers_giving
+        description: "Observed starters who made a recurring payment this month."
+      - name: survival_rate
+        description: "sustainers_giving / sustainers_observed. To pool cohorts: sum(sustainers_giving) / sum(sustainers_observed)."
+      - name: ltv_to_date
+        description: "Average recurring revenue per starter through this month (sum of monthly revenue per observed starter). Not summable."
+      - name: cost_per_new_sustainer
+        description: "Acquisition cost / paid starters (cost > 0). Null without acquisition_cost."
+      - name: ltv_to_cpa
+        description: "paid_ltv_to_date / cost_per_new_sustainer: revenue returned per $1 of acquisition cost by this month (paid starters on both sides)."
+
+  - name: pocore__cohort__age__breakdown
+    description: >
+      One row per sustainer cohort x month of life x breakdown value: the same columns as
+      pocore__cohort__age, split by acquisition channel (breakdown_by = 'acquisition_channel').
+      Within one breakdown_by, counts and revenue add up to the cohort. Sustainers module only.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['cohort_type', 'cohort_year', 'age_months', 'breakdown_by', 'breakdown_value']}
+    columns: *cohort_age_columns

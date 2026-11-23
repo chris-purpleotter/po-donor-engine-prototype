@@ -1,0 +1,65 @@
+version: 2
+
+# MODULE movement: certified outputs.
+# CERTIFIED = a module's PUBLIC outputs: reliable and OPINIONATED, for business users and dashboards
+# (schema `pocore`, tag pocore_certified). Built from this module's workings, which read only the
+# foundation. Rules: the table name states the grain (at most three levels); keys are tested unique;
+# standard columns are the same for every client; rates come with their numerators and denominators.
+
+models:
+  - name: pocore__year
+    description: >
+      One row per fiscal year (the whole file, individuals): the donor movement funnel.
+      total_donors = new + second_year + continuing + reactivated + reactivated_second_year, and it
+      balances: this year's total = last year's total - lost + new + reactivated. Retention rates
+      are vs last year, with their denominators. is_partial_year = current year to date.
+      has_full_history = false for the first 5 years of data, when New/Reactivated over-count.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['fiscal_year']}
+    columns:
+      - name: fiscal_year
+        description: "Fiscal year, named by the calendar year it ends in (calendar year when fiscal_year_start_month = 1)."
+      - name: lost_donors
+        description: "Gave last year, not this year."
+      - name: new_donor_retention
+        description: "Second-year donors / last year's new donors."
+      - name: overall_retention
+        description: "(Second year + continuing + reactivated second year) / last year's total donors."
+
+  - name: pocore__cohort__year
+    description: >
+      One row per first-gift cohort x fiscal year (cohort_type = 'first_gift'; cohort_year = fiscal
+      year of the first-ever gift). Follows each cohort through later years: total_donors (members
+      who gave that year, by annual status) and pct_of_cohort (the retention curve). Don't add
+      total_donors across years: the same person gives in several.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['cohort_type', 'cohort_year', 'fiscal_year']}
+    columns:
+      - name: years_since_acquisition
+        description: "0 = the acquisition year."
+      - name: pct_of_cohort
+        description: "Share of the cohort that gave this year."
+
+  - name: pocore__person__year
+    description: >
+      The donor journey: one row per person x fiscal year (individuals; from the year they first
+      appear to now). That year's giving (gave, gifts, amount_given), movement_status (New / Second
+      year / Continuing / Reactivated / Reactivated - second year / Lost / Not giving / Never given),
+      and the stage at the year's last month-end and 1, 2, 3 years before. For a Sankey, filter ONE
+      fiscal_year and count people by stage_1y_ago -> stage.
+    data_tests:
+      - pocore_unique_combination:
+          arguments: {columns: ['person_id', 'fiscal_year']}
+    columns:
+      - name: movement_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['New', 'Second year', 'Continuing', 'Reactivated', 'Reactivated - second year', 'Lost', 'Not giving', 'Never given']
+      - name: stage_date
+        description: "The month-end the stage describes: the fiscal year's last month-end (the latest month-end for the current year)."
+      - name: stage_1y_ago
+        description: "Lifecycle stage 12 months before stage_date. Null before the snapshot history starts or before the person existed."

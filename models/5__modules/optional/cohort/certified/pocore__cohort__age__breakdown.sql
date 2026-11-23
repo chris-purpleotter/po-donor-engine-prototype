@@ -1,0 +1,33 @@
+{{ config(enabled=pocore_client_config__module_enabled('cohort')) }}
+
+{#
+  pocore__cohort__age__breakdown — ONE ROW PER SUSTAINER COHORT x MONTH OF LIFE x BREAKDOWN
+  VALUE. The same columns as pocore__cohort__age, split by acquisition channel
+  (breakdown_by = 'acquisition_channel'): survival, LTV, CPA and LTV:CPA per channel.
+  Within one breakdown_by the values add up to the cohort (counts and revenue).
+#}
+
+with
+
+pocore_cohort__sustainer__age as (select * from {{ ref('pocore_cohort__sustainer__age') }})
+
+select
+    cohort_type,
+    cohort_year,
+    age_months,
+    breakdown_by,
+    breakdown_value,
+    sustainers_started,
+    sustainers_observed,
+    sustainers_giving,
+    survival_rate,
+    revenue,
+    ltv_to_date,
+    paid_sustainers_started,
+    paid_sustainers_observed,
+    paid_revenue,
+    cost_per_new_sustainer,
+    paid_ltv_to_date,
+    paid_ltv_to_date / nullif(cost_per_new_sustainer, 0) as ltv_to_cpa
+from pocore_cohort__sustainer__age
+where breakdown_by <> 'all'

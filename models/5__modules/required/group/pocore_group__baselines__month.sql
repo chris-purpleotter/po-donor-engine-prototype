@@ -1,0 +1,126 @@
+{#
+  pocore_group__baselines__month — how each segment has historically performed (SPEC §3.1).
+  INTERNAL metrics layer: the full long table that the srv models read from. Not exposed —
+  it mixes whole-segment and slice rows, so naive aggregation double-counts.
+  One row per segment_id x kpi_id x outcome_window_days x anchor_date.
+
+  For every segment at every anchor date: who was in it and what they did afterwards,
+  aggregated. Reads FOUNDATION (pocore_group__membership__month and
+  pocore_foundation__person__month), so every number traces back to rows an analyst can query.
+    kpi 'gave'              metric_type 'rate'  value = share who gave,  variance = p(1-p)
+    kpi 'retained'          metric_type 'rate'  value = share still an active sustainer at window end
+    kpi 'started_monthly'   metric_type 'rate'  value = share who signed up to a new monthly plan
+    kpi 'revenue_per_donor' metric_type 'mean'  value = capped mean,     variance = sample variance
+
+  revenue_gap_per_success (rate KPIs only): capped revenue per donor among those who
+  succeeded minus among those who didn't, over the same window. What one extra success has
+  been worth, observationally; used for the srv opportunity estimate. Null for mean KPIs.
+
+  Splits and sets are just more segments (see pocore_group__membership__month): the descriptive
+  columns parent_segment_id / split_by / split_value / segment_set_id are carried through.
+
+  Rows whose window hasn't fully elapsed are kept but flagged (is_window_complete = false);
+  they are partial and must never be pooled or reported as final.
+#}
+
+{%- set windows = pocore_engine_config__kpi_windows() -%}
+{%- set measure_ids = pocore_engine_config__measure_ids() -%}
+{%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
+{%- set float_type = dbt.type_float() -%}
+
+with
+
+pocore_group__membership__month as (select * from {{ ref('pocore_group__membership__month') }}),
+
+pocore_foundation__person__month_end as (select * from {{ ref('pocore_foundation__person__month_end') }}),
+
+joined as (
+
+    -- Built from FOUNDATION: who was in each segment at each month-end, joined to what they
+    -- did afterwards (outcomes).
+    select
+        pocore_group__membership__month.segment_id,
+        {%- for c in desc_cols %}
+        pocore_group__membership__month.{{ c }},
+        {%- endfor %}
+        pocore_foundation__person__month_end.person_id,
+        pocore_foundation__person__month_end.month_end_date as anchor_date,
+        {%- for w in windows %}
+        {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
+        pocore_foundation__person__month_end.{{ k }}_{{ w }}d,
+        {%- endfor %}
+        pocore_foundation__person__month_end.revenue_{{ w }}d,
+        pocore_foundation__person__month_end.revenue_uncapped_{{ w }}d,
+        pocore_foundation__person__month_end.is_complete_{{ w }}d{{ ',' if not loop.last }}
+        {%- endfor %}
+    from pocore_group__membership__month
+    inner join pocore_foundation__person__month_end
+        on  pocore_foundation__person__month_end.person_id      = pocore_group__membership__month.person_id
+        and pocore_foundation__person__month_end.month_end_date = pocore_group__membership__month.month_end_date
+
+),
+
+aggregated as (
+
+    select
+        segment_id,
+        {%- for c in desc_cols %}
+        {{ c }},
+        {%- endfor %}
+        anchor_date,
+        count(*) as n,
+        {%- for w in windows %}
+        {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
+        avg(cast({{ k }}_{{ w }}d as {{ float_type }}))                                       as {{ k }}_{{ w }}d_rate,
+        avg(case when {{ k }}_{{ w }}d = 1 then cast(revenue_{{ w }}d as {{ float_type }}) end)
+            - coalesce(avg(case when {{ k }}_{{ w }}d = 0 then cast(revenue_{{ w }}d as {{ float_type }}) end), 0)
+                                                                                           as {{ k }}_{{ w }}d_revenue_gap,
+        {%- endfor %}
+        avg(cast(revenue_{{ w }}d as {{ float_type }}))          as revenue_{{ w }}d_mean,
+        var_samp(cast(revenue_{{ w }}d as {{ float_type }}))     as revenue_{{ w }}d_var,
+        avg(cast(revenue_uncapped_{{ w }}d as {{ float_type }})) as revenue_uncapped_{{ w }}d_mean,
+        max(case when is_complete_{{ w }}d then 1 else 0 end)    as complete_{{ w }}d
+        {%- if not loop.last %},{% endif %}
+        {%- endfor %}
+    from joined
+    group by segment_id, {{ desc_cols | join(', ') }}, anchor_date
+
+)
+
+{% for w in windows %}
+{%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
+select
+    segment_id, {{ desc_cols | join(', ') }},
+    '{{ k }}'                                                       as kpi_id,
+    'rate'                                                          as metric_type,
+    {{ w }}                                                         as outcome_window_days,
+    anchor_date,
+    n,
+    {{ k }}_{{ w }}d_rate                                           as value,
+    {{ k }}_{{ w }}d_rate * (1 - {{ k }}_{{ w }}d_rate)             as variance,
+    cast(null as {{ float_type }})                                  as value_uncapped,
+    {{ k }}_{{ w }}d_revenue_gap                                    as revenue_gap_per_success,
+    cast({{ dbt.dateadd('day', w, 'anchor_date') }} as date)        as window_end,
+    (complete_{{ w }}d = 1)                                         as is_window_complete
+from aggregated
+
+union all
+{% endfor %}
+select
+    segment_id, {{ desc_cols | join(', ') }},
+    'revenue_per_donor'                                             as kpi_id,
+    'mean'                                                          as metric_type,
+    {{ w }}                                                         as outcome_window_days,
+    anchor_date,
+    n,
+    revenue_{{ w }}d_mean                                           as value,
+    coalesce(revenue_{{ w }}d_var, 0)                               as variance,
+    revenue_uncapped_{{ w }}d_mean                                  as value_uncapped,
+    cast(null as {{ float_type }})                                  as revenue_gap_per_success,
+    cast({{ dbt.dateadd('day', w, 'anchor_date') }} as date)        as window_end,
+    (complete_{{ w }}d = 1)                                         as is_window_complete
+from aggregated
+{% if not loop.last %}
+union all
+{% endif %}
+{% endfor %}
