@@ -22,33 +22,7 @@ vars:
     people_extra_columns: [is_board_member, acquisition_cost]
     # Finance-reported revenue for the sign-off check: 2024 matches, 2025 is deliberately off.
     finance_totals_model: finance_totals
-    # Short horizons so the 3-month fixture sustainer (D05) produces checkable numbers;
-    # 12 and 6 prove months nobody has reached yet come back null, not 0.
-    sustainer_survival_months: [2, 6]
-    sustainer_ltv_horizons_months: [3, 12]
     gifts_extra_columns: [campaign_code]
-    # Custom segments, as a client would add them (prove custom rules + attributes work).
-    segments:
-      - id: cust_lapsed_100_v1
-        label: "Lapsed, $100+ lifetime"
-        rule: "lifecycle_stage = 'lapsed' and net_giving_lifetime >= 100"
-      - id: cust_board_v1
-        label: "Board members (who've served)"   # apostrophe on purpose: tests quoting (D10 trap 7)
-        rule: "attr_is_board_member"
-      # judged on started_monthly: did they sign up to a new monthly plan?
-      - id: cust_could_go_monthly_v1
-        label: "Not giving monthly yet"
-        rule: "not is_recurring_active"
-        primary_kpi: started_monthly
-        primary_window_days: 90
-      # split_by: also one segment per value (cust_givers_v1__web, cust_givers_v1__direct_mail ...)
-      - id: cust_big_gift_v1
-        label: "Gave $100+ in one gift"
-        rule: "rollup_gift_count_100_plus_lifetime >= 1"
-      - id: cust_givers_v1
-        label: "Has given"
-        rule: "gift_count_lifetime > 0"
-        split_by: acquisition_channel
     # Custom rollups (v0.3.8): person-level columns from gifts, as of each month-end.
     # The 2nd-4th mirror standard columns on purpose, so the test can cross-check them.
     rollups:
@@ -57,16 +31,45 @@ vars:
       - {source: gift, agg: max, column: amount, window: lifetime}
       - {source: gift, agg: days_since, label: recurring, where: "gift_type = 'recurring'", window: lifetime}
       - {source: gift, agg: any, window: ytd}
-    # Break down a STANDARD segment without redefining it.
-    standard_splits:
-      std_lapsed_v1: region
-    # A set: non-overlapping populations, first match wins, plus everyone else.
-    segment_sets:
-      - id: set_lapsed_value_v1
-        segments: [cust_lapsed_100_v1, std_lapsed_v1]
-        include_remainder: true
+    # Module group (required): segments, splits, sets and test-planning settings.
+    module__group:
+      # Custom segments, as a client would add them (prove custom rules + attributes work).
+      segments:
+        - id: cust_lapsed_100_v1
+          label: "Lapsed, $100+ lifetime"
+          rule: "lifecycle_stage = 'lapsed' and net_giving_lifetime >= 100"
+        - id: cust_board_v1
+          label: "Board members (who've served)"   # apostrophe on purpose: tests quoting (D10 trap 7)
+          rule: "attr_is_board_member"
+        # judged on started_monthly: did they sign up to a new monthly plan?
+        - id: cust_could_go_monthly_v1
+          label: "Not giving monthly yet"
+          rule: "not is_recurring_active"
+          primary_kpi: started_monthly
+          primary_window_days: 90
+        # split_by: also one segment per value (cust_givers_v1__web, cust_givers_v1__direct_mail ...)
+        - id: cust_big_gift_v1
+          label: "Gave $100+ in one gift"
+          rule: "rollup_gift_count_100_plus_lifetime >= 1"
+        - id: cust_givers_v1
+          label: "Has given"
+          rule: "gift_count_lifetime > 0"
+          split_by: acquisition_channel
+      # Break down a STANDARD segment without redefining it.
+      standard_splits:
+        std_lapsed_v1: region
+      # A set: non-overlapping populations, first match wins, plus everyone else.
+      segment_sets:
+        - id: set_lapsed_value_v1
+          segments: [cust_lapsed_100_v1, std_lapsed_v1]
+          include_remainder: true
+    module__cohort:
+      # Short horizons so the 3-month fixture sustainer (D05) produces checkable numbers;
+      # 12 and 6 prove months nobody has reached yet come back null, not 0.
+      survival_months: [2, 6]
+      ltv_horizons_months: [3, 12]
     # Supporter Insights export: a client attr_ column, bands, and an apostrophe on purpose (D10 trap 7).
-    insights:
+    module__insights:
       client_name: "Integration test (who's tested)"
       window_days: 90
       dimensions:

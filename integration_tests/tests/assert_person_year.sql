@@ -1,3 +1,4 @@
+{{ config(enabled=po_core.pocore_client_config__module_enabled('movement')) }}
 -- Hand-calculated person x year rows (as_of = 2026-09-30, calendar fiscal year). Zero rows = pass.
 -- D04: only gift 2025-09-01.
 --   FY2025: gave, New. Stage at 2025-12-31 (the year's last month-end): 121 days -> active.

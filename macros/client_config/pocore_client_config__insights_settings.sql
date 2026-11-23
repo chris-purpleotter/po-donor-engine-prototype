@@ -1,11 +1,11 @@
 {#
-  Settings for Supporter Insights export (models/5__modules/optional/insights), from the client's `insights` var, with
-  defaults for anything not set. Everything client-specific about the report lives here, in the
+  Settings for the Supporter Insights export (models/5__modules/optional/insights): the client's
+  `module__insights` block over the defaults in pocore_client_config__module, then checked. Everything client-specific about the report lives here, in the
   client's dbt project, so the report tool itself stays client-agnostic.
 
     vars:
       po_core:
-        insights:
+        module__insights:
           client_name: "Acme Foundation"
           window_days: 180          # 30, 90, 180 or 365: the cube's outcome window
           holdout_pct: 15           # for the detectable-lift estimate
@@ -23,28 +23,7 @@
 #}
 
 {% macro pocore_client_config__insights_settings() %}
-    {%- set defaults = {
-        'client_name': project_name,
-        'window_days': 180,
-        'holdout_pct': 15,
-        'min_group_size': 5,
-        'dimensions': [
-            {'name': 'lifecycle_stage', 'label': 'Lifecycle stage'},
-            {'name': 'acquisition_channel', 'label': 'Acquisition channel'},
-            {'name': 'region', 'label': 'Region'},
-            {'name': 'first_gift_band', 'label': 'First gift'},
-            {'name': 'lifetime_giving', 'label': 'Lifetime giving', 'bands': [
-                {'label': '$0 (never given)', 'sql': 'net_giving_lifetime <= 0'},
-                {'label': '$1 - $99', 'sql': 'net_giving_lifetime > 0 and net_giving_lifetime < 100'},
-                {'label': '$100 - $249', 'sql': 'net_giving_lifetime >= 100 and net_giving_lifetime < 250'},
-                {'label': '$250 - $999', 'sql': 'net_giving_lifetime >= 250 and net_giving_lifetime < 1000'},
-                {'label': '$1,000+', 'sql': 'net_giving_lifetime >= 1000'}
-            ]}
-        ]
-    } -%}
-    {%- set s = {} -%}
-    {%- do s.update(defaults) -%}
-    {%- do s.update(var('insights', {}) or {}) -%}
+    {%- set s = pocore_client_config__module('insights') -%}
 
     {#- lifecycle_stage with no bands of its own gets the engine's stage labels as bands, so the
         dropdown reads "Lapsed (13-24 months)" in lifecycle order, and a picked stage still

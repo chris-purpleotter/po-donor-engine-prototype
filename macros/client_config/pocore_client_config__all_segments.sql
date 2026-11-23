@@ -13,19 +13,19 @@
 {% macro pocore_client_config__all_segments() %}
     {%- set out = [] -%}
     {%- set standard = pocore_engine_config__standard_segments() -%}
-    {%- set standard_splits = var('standard_splits', {}) or {} -%}
+    {%- set standard_splits = pocore_client_config__module('group').standard_splits or {} -%}
     {%- set standard_ids = standard | map(attribute='id') | list -%}
     {%- for sid in standard_splits -%}
         {%- if sid not in standard_ids -%}
             {{ exceptions.raise_compiler_error("po_core: standard_splits names '" ~ sid ~ "', which is not a standard segment (" ~ standard_ids | join(', ') ~ "). For a custom segment, put split_by on the segment itself.") }}
         {%- endif -%}
     {%- endfor -%}
-    {%- for s in standard + var('segments', []) -%}
+    {%- for s in standard + pocore_client_config__module('group').segments -%}
         {%- do out.append({
             'id': s.id,
             'label': s.label,
             'rule': s.rule,
-            'primary_window_days': s.get('primary_window_days', var('summary_default_window_days')),
+            'primary_window_days': s.get('primary_window_days', pocore_client_config__module('group').summary_default_window_days),
             'primary_kpi': s.get('primary_kpi', 'gave'),
             'split_by': standard_splits.get(s.id) if s.id in standard_ids else s.get('split_by')
         }) -%}

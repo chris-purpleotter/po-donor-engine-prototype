@@ -1,3 +1,4 @@
+{{ config(enabled=po_core.pocore_client_config__module_enabled('movement')) }}
 -- Hand-calculated cohorts (calendar years; as_of = 2026-09-30). Zero rows = pass.
 -- 2023 cohort = {D01, D02} (size 2): 2023 total 2 (both New); 2024 total 1 (D01 Second year);
 --   2025 total 0; 2026 total 0.

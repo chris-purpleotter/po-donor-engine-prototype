@@ -18,7 +18,7 @@
   starters with acquisition_cost > 0, the cohort's cost per new sustainer, and ltv_to_cpa.
 #}
 
-{%- set max_months = (var('sustainer_survival_months') + var('sustainer_ltv_horizons_months')) | max -%}
+{%- set max_months = (pocore_client_config__module('cohort').survival_months + pocore_client_config__module('cohort').ltv_horizons_months) | max -%}
 {%- set has_cost = 'acquisition_cost' in var('people_extra_columns') -%}
 {%- set float = dbt.type_float() -%}
 

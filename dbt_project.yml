@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.6.0'
+version: '0.7.0'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -40,18 +40,18 @@ models:
       +tags: ['pocore_foundation']
     # --- modules: use cases built on top of the foundation
     5__modules:
-      required:                       # always built: the certified tables depend on them (no switch)
+      required:                       # always built: insights and admin depend on it (no switch)
         group:
           +tags: ['pocore_group']       # segments: who was in a situation at each month-end, and how they did
           certified:
             +schema: pocore             # CERTIFIED: this module's public outputs, where BI tools connect
             +tags: ['pocore_certified']
+      optional:                       # each has `enabled` in its module__<name> block
         movement:
           +tags: ['pocore_movement']    # yearly donor status
           certified:
             +schema: pocore             # CERTIFIED: this module's public outputs, where BI tools connect
             +tags: ['pocore_certified']
-      optional:                       # each has a switch in var `modules`
         cohort:
           +tags: ['pocore_cohort']      # people who started together, and how they aged
           certified:
@@ -85,42 +85,16 @@ vars:
     # Custom rollups: extra rollup_* columns on the month-end table (macro pocore_client_config__rollups)
     rollups: []
 
-    # ── MODULE group: segments and their statistics ───────────────────────────────────────────────
-    # Everything is a segment. `segments`: custom segments (optionally split_by: <column>);
-    # `standard_splits`: break down the standard segments ({std_lapsed_v1: acquisition_channel});
-    # `segment_sets`: non-overlapping populations (first match wins; include_remainder optional).
-    segments: []
-    standard_splits: {}
-    segment_sets: []
-    # Test planning (the values a client actually tests with go in their experiments input, not here)
-    alpha: 0.05                             # two-sided
-    power: 0.8
-    holdout_grid: [10, 15, 20, 30]
-    baseline_lookback_months: [12, 24]
-    baseline_recent_anchors: 3              # "today's normal" = last N complete month-ends
-    baseline_instability_threshold: 0.25    # recent vs pooled relative gap that flags is_unstable
-    max_plausible_relative_lift: 0.5        # is_testable: detectable lift must be <= +50% relative
-    # Headline choices for pocore__segment
-    summary_holdout_pct: 15                 # must be in holdout_grid
-    summary_default_window_days: 180        # primary window for custom segments without primary_window_days
-
-    # ── MODULE cohort: monthly givers by months since they started ────────────────────────────────
-    # Months counted from the first recurring payment (month 1); the longest list sets how many rows.
-    sustainer_survival_months: [2, 6, 12, 24]     # "still giving in month N" columns
-    sustainer_ltv_horizons_months: [12, 24, 60]   # cumulative revenue per starter through month N
-
-    # ── MODULE insights: the Supporter Insights report ────────────────────────────────────────────────
-    # Every setting and its default: macros/client_config/pocore_client_config__insights_settings.sql
-    insights: {}
+    # ── MODULES: one block per module, `module__<name>`; write only what you change ──────────────────
+    # Every setting and its default: macros/client_config/pocore_client_config__module.sql
+    # Optional modules take `enabled: false` to switch off (the rest of the block can stay).
+    module__group: {}       # REQUIRED (no switch): segments, standard_splits, segment_sets, test-planning settings
+    module__movement: {}    # optional: yearly donor status (pocore__year, __cohort__year, __person__year)
+    module__cohort: {}      # optional: monthly givers by months since they started (survival_months, ltv_horizons_months)
+    module__insights: {}    # optional: the Supporter Insights report (client_name, window_days, dimensions ...)
 
     # ── ADMIN: sign-off checks ───────────────────────────────────────────────────────────────────
     # Optional client model/seed with one row per fiscal year (giving_year, finance_revenue).
     # Null = not supplied; the finance_match checks say so.
     finance_totals_model: null
     finance_tolerance_pct: 1                # engine vs finance gap allowed before 'warn'
-
-    # ── SWITCHES: turn an OPTIONAL module off (its models aren't built, so its tables don't exist) ─
-    # Required modules (group, movement) have no switch: the certified tables depend on them.
-    modules:
-      cohort: true          # pocore_cohort__* and pocore__cohort__age(__breakdown) (needs recurring gifts)
-      insights: true            # pocore_export__insights_* tables for Supporter Insights

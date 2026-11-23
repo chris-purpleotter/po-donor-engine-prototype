@@ -18,7 +18,7 @@
   Individuals only, KPI-eligible gifts only (consistent with the other metrics).
 #}
 
-{%- set max_months = (var('sustainer_survival_months') + var('sustainer_ltv_horizons_months')) | max -%}
+{%- set max_months = (pocore_client_config__module('cohort').survival_months + pocore_client_config__module('cohort').ltv_horizons_months) | max -%}
 
 with
 

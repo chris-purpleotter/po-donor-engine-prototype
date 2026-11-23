@@ -17,7 +17,7 @@
 {%- set tolerance = var('finance_tolerance_pct') | float -%}
 {%- set modules_on = [] -%}
 {#- keep in step with the known modules in pocore_client_config__module_enabled -#}
-{%- for m in ['cohort'] -%}
+{%- for m in ['movement', 'cohort', 'insights'] -%}
     {%- if pocore_client_config__module_enabled(m) %}{% do modules_on.append(m) %}{% endif -%}
 {%- endfor -%}
 {#- latest COMPLETE month: the month that ends on or before as_of -#}

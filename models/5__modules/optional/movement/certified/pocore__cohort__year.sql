@@ -1,3 +1,4 @@
+{{ config(enabled=pocore_client_config__module_enabled('movement')) }}
 {#
   pocore__cohort__year — ONE ROW PER FIRST-GIFT COHORT x FISCAL YEAR.
   cohort_type is always 'first_gift' here (sustainer cohorts: pocore__cohort__age).

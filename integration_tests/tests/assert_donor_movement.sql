@@ -1,3 +1,4 @@
+{{ config(enabled=po_core.pocore_client_config__module_enabled('movement')) }}
 -- Hand-calculated donor movement (calendar years; as_of = 2026-09-30). Zero rows = pass.
 --
 -- Years each individual gave (eligible, non-refund gifts):

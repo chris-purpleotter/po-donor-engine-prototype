@@ -21,13 +21,13 @@
 
 {% macro pocore_sql__segment_summary() %}
 
-{%- set lookback = var('baseline_lookback_months')[0] -%}
-{%- set holdout = var('summary_holdout_pct') -%}
+{%- set lookback = pocore_client_config__module('group').baseline_lookback_months[0] -%}
+{%- set holdout = pocore_client_config__module('group').summary_holdout_pct -%}
 {%- set windows = pocore_engine_config__kpi_windows() -%}
 {%- set segments = pocore_client_config__all_segments() -%}
 
-{%- if holdout not in var('holdout_grid') -%}
-    {{ exceptions.raise_compiler_error("po_core: summary_holdout_pct " ~ holdout ~ " must be one of holdout_grid " ~ var('holdout_grid')) }}
+{%- if holdout not in pocore_client_config__module('group').holdout_grid -%}
+    {{ exceptions.raise_compiler_error("po_core: summary_holdout_pct " ~ holdout ~ " must be one of holdout_grid " ~ pocore_client_config__module('group').holdout_grid) }}
 {%- endif -%}
 {%- for s in segments -%}
     {%- set allowed = pocore_engine_config__kpi_windows('retained') if s.primary_kpi == 'retained' else windows -%}
