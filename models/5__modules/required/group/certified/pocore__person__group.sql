@@ -1,8 +1,8 @@
 {#
-  pocore__person__segment — ONE ROW PER PERSON x SEGMENT, as of the latest month-end.
-  The roster: "who is in this segment right now?", the list someone acts on (mailing, calls,
-  CRM tag). Counting rows for one segment = counting its people. A person can be in several
-  segments (custom segments may overlap), so filter to one segment before counting.
+  pocore__person__group — ONE ROW PER PERSON x GROUP, as of the latest month-end.
+  The roster: "who is in this group right now?", the list someone acts on (mailing, calls,
+  CRM tag). Counting rows for one group = counting its people. A person can be in several
+  groups (custom groups may overlap), so filter to one group before counting.
 
   Certified (a convenience table): who the person is (pocore_foundation__person) and their state
   at that month-end (pocore_foundation__person__month_end) are repeated for display and filtering.
@@ -25,13 +25,13 @@ latest as (
 
 select
     membership.person_id,
-    membership.segment_id,
-    membership.segment_label,
-    membership.segment_source,
-    membership.parent_segment_id,
+    membership.group_id,
+    membership.group_label,
+    membership.group_source,
+    membership.parent_group_id,
     membership.split_by,
     membership.split_value,
-    membership.segment_set_id,
+    membership.group_set_id,
     membership.month_end_date,
     month_end.lifecycle_stage,
     person.acquisition_channel,

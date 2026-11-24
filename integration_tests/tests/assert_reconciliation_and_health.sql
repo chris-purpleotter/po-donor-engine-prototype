@@ -13,7 +13,7 @@
 --                         Sep 2025-Aug 2026: 2 of 5 real gifts recurring = 0.4 -> 2.5 -> ok
 --   active_donors_12m   eligible real gifts after 2025-09-30: D03 (G005), D05 (G007-9) -> 2
 --   eligible_share_12m  window net 150 + 60 + 5000 = 5210; eligible 210 -> 0.0403
---   empty_segments      std_new_v1 only (no first gift in the last 90 days) -> 1, warn
+--   empty_groups      std_new_v1 only (no first gift in the last 90 days) -> 1, warn
 
 with recon as (
     select * from {{ ref('pocore_admin__reconciliation') }}
@@ -42,7 +42,7 @@ health_checks as (
                when 'recurring_share_drop:all'         then 2.5
                when 'active_donors_12m:all'            then 2
                when 'eligible_share_12m:all'           then 210.0 / 5210
-               when 'empty_segments:all'               then 1
+               when 'empty_groups:all'               then 1
                when 'finance_match:2024'               then 0
                when 'finance_match:2025'               then 4.4
            end as expected
@@ -53,9 +53,9 @@ health_checks as (
 status_checks as (
     select check_id || ':' || scope || ' status=' || status as check_name, 0.0 as actual, 1.0 as expected
     from health
-    where (check_id || ':' || scope) in ('finance_match:2025', 'empty_segments:all', 'months_without_gifts:all') and status != 'warn'
+    where (check_id || ':' || scope) in ('finance_match:2025', 'empty_groups:all', 'months_without_gifts:all') and status != 'warn'
        or (check_id || ':' || scope) in ('finance_match:2024', 'data_freshness:all', 'recurring_share_drop:all') and status != 'ok'
-       or (check_id = 'empty_segments' and detail != 'std_new_v1')
+       or (check_id = 'empty_groups' and detail != 'std_new_v1')
 )
 
 select * from recon_checks where actual is null or abs(actual - expected) > 0.001

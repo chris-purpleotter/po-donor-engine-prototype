@@ -1,14 +1,14 @@
 {#
-  Each configured segment's primary window and KPI, as SQL rows (segment_id, primary_window_days,
-  primary_kpi). Split and set segments use their parent's: join on
-  coalesce(parent_segment_id, '__remainder__'). Shared by pocore__segment and
-  pocore__segment__month, so both always agree on a group's headline measure.
+  Each configured group's primary window and KPI, as SQL rows (group_id, primary_window_days,
+  primary_kpi). Split and set groups use their parent's: join on
+  coalesce(parent_group_id, '__remainder__'). Shared by pocore__group and
+  pocore__group__month, so both always agree on a group's headline measure.
 #}
 {% macro pocore_sql__primary_choices() %}
-    {% for s in pocore_client_config__all_segments() %}
-    select '{{ s.id }}' as segment_id, {{ s.primary_window_days }} as primary_window_days, '{{ s.primary_kpi }}' as primary_kpi
+    {% for s in pocore_client_config__all_groups() %}
+    select '{{ s.id }}' as group_id, {{ s.primary_window_days }} as primary_window_days, '{{ s.primary_kpi }}' as primary_kpi
     union all
     {% endfor %}
-    -- a set's remainder ("everyone else") has no parent segment: default window and KPI
+    -- a set's remainder ("everyone else") has no parent group: default window and KPI
     select '__remainder__', {{ pocore_client_config__module('group').summary_default_window_days }}, 'gave'
 {% endmacro %}

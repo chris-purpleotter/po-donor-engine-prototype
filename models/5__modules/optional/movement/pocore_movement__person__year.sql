@@ -10,7 +10,7 @@
     Reactivated                 previous gift 2-4 years ago
     Reactivated - second year   reactivated last year, gave again this year
 
-  Individuals only (consistent with segments). Deceased donors ARE included: they gave
+  Individuals only (consistent with groups). Deceased donors ARE included: they gave
   in those years, and dropping them would rewrite history.
 #}
 

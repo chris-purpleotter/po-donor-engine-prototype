@@ -1,9 +1,9 @@
 {#
-  pocore_segment_explorer — AD-HOC EXPLORATION on foundation (an example to copy, not a table).
+  pocore_group_explorer — AD-HOC EXPLORATION on foundation (an example to copy, not a table).
 
-  The certified tables are our standard view (pocore__segment, pocore__segment__breakdown).
+  The certified tables are our standard view (pocore__group, pocore__group__breakdown).
   This query is the dynamic version: put ANY combination of filters in `filters`, and get the
-  same headline numbers the engine computes for a segment:
+  same headline numbers the engine computes for a group:
     people_now          people matching the filters at the latest month-end
     rate_recent         share who achieved the KPI within the window, pooled over the last 3
                         month-ends whose window has finished (today's normal)
@@ -16,12 +16,12 @@
                         (2.8016 = z for 95% confidence two-sided + z for 80% power)
 
   It works on any warehouse: dbt compiles it for yours. Run it with
-      dbt compile -s pocore_segment_explorer      (then run target/compiled/.../pocore_segment_explorer.sql)
+      dbt compile -s pocore_group_explorer      (then run target/compiled/.../pocore_group_explorer.sql)
   or copy it into the client project's analyses/ and edit freely.
 
   Close to, not identical to, the certified numbers: the engine's detectable lift also allows
   for month-to-month swings in the rate (pooled variance), so it is slightly more cautious.
-  When a filter set proves worth tracking, make it a custom segment: then it gets history,
+  When a filter set proves worth tracking, make it a custom group: then it gets history,
   a roster, flows and (later) experiment readouts, and everyone uses the same definition.
 #}
 
@@ -44,7 +44,7 @@ with people_months as (
         revenue_{{ window_days }}d                 as revenue,
         is_complete_{{ window_days }}d             as is_complete
     from {{ ref('pocore_foundation__person__month_end') }}
-    where person_type = 'individual'               -- the engine's default segment filter
+    where person_type = 'individual'               -- the engine's default group filter
       and not is_deceased
       and ({{ filters }})
 

@@ -1,7 +1,7 @@
 -- Certified tables must agree with each other and with foundation (DESIGN §6.2). Zero rows = pass.
 --   1. pocore__year = sums of pocore__person__year, per fiscal year (movement module)
 --   2. pocore_foundation__gift ties exactly to the gifts input (every gift once)
---   3. pocore__segment people_in_segment = membership rows at the latest month-end
+--   3. pocore__group people_in_group = membership rows at the latest month-end
 --   4. pocore__cohort__age__breakdown adds up to pocore__cohort__age (cohort module)
 
 with year_check as (
@@ -34,16 +34,16 @@ gift_check as (
     where f.n != c.n or abs(f.amt - c.amt) > 0.001
 ),
 
-segment_check as (
-    select s.segment_id
-    from {{ ref('pocore__segment') }} as s
+group_check as (
+    select s.group_id
+    from {{ ref('pocore__group') }} as s
     left join (
-        select segment_id, count(*) as n
+        select group_id, count(*) as n
         from {{ ref('pocore_group__membership__month') }}
         where month_end_date = (select max(month_end_date) from {{ ref('pocore_group__membership__month') }})
-        group by segment_id
-    ) as m on m.segment_id = s.segment_id
-    where coalesce(m.n, 0) != s.people_in_segment
+        group by group_id
+    ) as m on m.group_id = s.group_id
+    where coalesce(m.n, 0) != s.people_in_group
 )
 
 {%- if po_core.pocore_client_config__module_enabled('cohort') %},
@@ -64,14 +64,14 @@ cohort_check as (
 {%- endif %}
 
 -- uncapped revenue can never be below capped revenue
-select 'uncapped < capped revenue' as check_name, cast(segment_id as {{ dbt.type_string() }}) as detail
-from {{ ref('pocore__segment__month') }}
+select 'uncapped < capped revenue' as check_name, cast(group_id as {{ dbt.type_string() }}) as detail
+from {{ ref('pocore__group__month') }}
 where revenue_per_person_uncapped_365d < revenue_per_person_365d - 0.001
    or revenue_per_person_uncapped_90d  < revenue_per_person_90d  - 0.001
 union all
 select 'year vs person_year' as check_name, cast(fiscal_year as {{ dbt.type_string() }}) as detail from year_check
 union all select 'foundation gift vs input', null from gift_check
-union all select 'segment size vs membership', segment_id from segment_check
+union all select 'group size vs membership', group_id from group_check
 {%- if po_core.pocore_client_config__module_enabled('cohort') %}
 union all select 'cohort breakdown vs cohort', cast(cohort_year as {{ dbt.type_string() }}) from cohort_check
 {%- endif %}

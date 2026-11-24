@@ -13,7 +13,7 @@
     gave          of them, how many gave within insights.window_days
     revenue_givers / revenue_nongivers   capped window revenue of those who did / didn't
 
-  Population: individuals, not deceased (the same as segments). Built from foundation.
+  Population: individuals, not deceased (the same as groups). Built from foundation.
 #}
 
 {%- set s = pocore_client_config__insights_settings() -%}

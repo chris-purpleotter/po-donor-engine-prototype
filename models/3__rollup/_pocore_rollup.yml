@@ -8,7 +8,7 @@ models:
     description: >
       One row per person per month-end snapshot date. Every value is computed as of that
       month-end from KPI-eligible gifts only (SPEC §5). This column list is the menu
-      for segment rules.
+      for group rules.
     columns:
       - name: person_id
         data_tests: [not_null]

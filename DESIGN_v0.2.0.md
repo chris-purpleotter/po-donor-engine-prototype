@@ -428,6 +428,26 @@ subfolder (schema `pocore`, tag `pocore_certified`): `5__modules/required/group/
 `5__modules/optional/cohort/certified/` (pocore__cohort__age, __age__breakdown). Analysts and BI use
 the foundation and certified tables only; module workings and earlier steps are internal.
 
+**v0.8.0 (breaking): "segment" is now "group" everywhere, and groups have terms.**
+- Rename: `pocore__group`, `__group__month`, `__group__test_option`, `__person__group`; columns
+  `group_id`, `group_label`, `group_set_id`, `parent_group_id`, `people_in_group`; client settings
+  `module__group: groups:` / `group_sets:`. Never a bare `group` column (SQL keyword). The unused
+  `pocore_group__segment` was deleted, not renamed (`pocore__group` is the one-row-per-group table).
+- `pocore__person__group__term` (certified): one row per person x group x TERM, an unbroken stretch of
+  month-ends in a group (joined_month_end, left_month_end, term_number, is_joined_before_data). Built from
+  `pocore_group__membership__month`, so month-end precision. It lives in the group module, NOT the
+  reserved `2__interval` lane: that lane reads inputs, but group membership is decided from the month-end
+  snapshot. Tested against people_entering / people_leaving.
+- `foundation__person__month_end.next_gave_date`: the first qualifying gift in the 365 days after (same
+  gifts as gave_<N>d, tested).
+- Setting `module__group.tenure_bands_months` (default [1, 2, 3, 4, 6, 12, 24]).
+- Exports `pocore_export__insights_tenure` (how long a group's people had been in it) and
+  `pocore_export__insights_next_gift` (the calendar month of their first gift after, 1-12; adds up to
+  gave_365d) for the report's "What happened" tab: one group at one month-end.
+- `analyses/pocore_group_at_a_time.sql`: the same views for ANY range of month-ends, each person once,
+  from certified + foundation tables only. The handover when a client outgrows the report (BI / SQL).
+- Report: pocore-insights 0.5.0 needs engine >= 0.8.0.
+
 **v0.7.2:** `foundation__gift` gains `is_first_recurring_payment` (a new monthly sign-up); new export
 `pocore_export__insights_month` (one row per calendar month, the last 36: new donors, win-backs, monthly
 sign-ups, gifts, donors, net giving) for the report's "What happened" tab. Additive, no breaking change.

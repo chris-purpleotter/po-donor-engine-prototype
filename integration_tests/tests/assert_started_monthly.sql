@@ -30,12 +30,12 @@ where gift_id in ('G007', 'G008', 'G009')
 
 union all
 
-select segment_id, primary_kpi, 'segment measure'
-from {{ ref('pocore__segment') }}
-where segment_id = 'cust_could_go_monthly_v1'
+select group_id, primary_kpi, 'group measure'
+from {{ ref('pocore__group') }}
+where group_id = 'cust_could_go_monthly_v1'
   and (primary_kpi is distinct from 'started_monthly' or outcome_window_days is distinct from 90)
 
 union all
 
-select 'cust_could_go_monthly_v1', 'missing', 'segment measure'
-where not exists (select 1 from {{ ref('pocore__segment') }} where segment_id = 'cust_could_go_monthly_v1')
+select 'cust_could_go_monthly_v1', 'missing', 'group measure'
+where not exists (select 1 from {{ ref('pocore__group') }} where group_id = 'cust_could_go_monthly_v1')

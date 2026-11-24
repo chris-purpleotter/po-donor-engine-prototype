@@ -11,7 +11,7 @@
 --      rollup_gift_max_amount_lifetime         = largest_gift_lifetime
 --      rollup_gift_days_since_recurring_lifetime = days_since_last_recurring
 --      rollup_gift_any_ytd                     = (gift_count_ytd > 0), checked via foundation
--- 4. The segment using a rollup holds exactly the people with a $100+ gift.
+-- 4. The group using a rollup holds exactly the people with a $100+ gift.
 
 with lookback as (
     select * from {{ ref('pocore_rollup__person__month_end_lookback') }}
@@ -44,7 +44,7 @@ mirrors as (
        or rollup_gift_days_since_recurring_lifetime is distinct from days_since_last_recurring
 ),
 
-segment as (
+custom_group_membership as (
     select person_id, cast(month_end_date as {{ dbt.type_string() }}) as detail,
            'cust_big_gift_v1 membership differs from the rollup' as problem
     from (
@@ -59,7 +59,7 @@ segment as (
         left join {{ ref('pocore_group__membership__month') }} as membership
             on membership.person_id = lookback.person_id
             and membership.month_end_date = lookback.snapshot_date
-            and membership.segment_id = 'cust_big_gift_v1'
+            and membership.group_id = 'cust_big_gift_v1'
         where people.person_type = 'individual' and not people.is_deceased
     ) as compared
     where should_be_in <> is_in
@@ -67,4 +67,4 @@ segment as (
 
 select * from known_answers
 union all select * from mirrors
-union all select * from segment
+union all select * from custom_group_membership

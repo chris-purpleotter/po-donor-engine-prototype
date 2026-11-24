@@ -16,7 +16,7 @@
               label: "Lifetime giving"
               bands:                # SQL over pocore_foundation__person__month columns; the
                 - {label: "$1 - $99", sql: "net_giving_lifetime > 0 and net_giving_lifetime < 100"}
-                                    # same SQL goes into the segment rules the report generates
+                                    # same SQL goes into the group rules the report generates
 
   Plain dimensions must be columns of pocore_foundation__person__month (attr_* included).
   Keep each to a handful of values: every dimension multiplies the cube's size.

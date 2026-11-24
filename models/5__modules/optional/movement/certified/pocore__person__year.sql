@@ -2,7 +2,7 @@
 {#
   pocore__person__year — ONE ROW PER PERSON x FISCAL YEAR (the donor JOURNEY), from the fiscal year the person
   first appears (created or first gift, whichever is earlier) to the current fiscal year.
-  Individuals only (the same population as pocore__year and the segments); deceased people
+  Individuals only (the same population as pocore__year and the groups); deceased people
   are kept, because they gave in those years.
 
   What happened in each person's year, and where they were on their journey:

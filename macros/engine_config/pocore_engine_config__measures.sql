@@ -1,5 +1,5 @@
 {#
-  The engine's group measures (a segment's `primary_kpi`): the ONE list. Adding a measure means
+  The engine's group measures (a group's `primary_kpi`): the ONE list. Adding a measure means
   adding it here, computing its {id}_{N}d outcome columns in pocore_rollup__person__month_end_lookahead, and
   carrying them through pocore_foundation__person__month; everything else reads this list.
 

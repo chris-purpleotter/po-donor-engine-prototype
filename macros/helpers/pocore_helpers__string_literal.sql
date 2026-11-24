@@ -1,5 +1,5 @@
 {#
-  A SQL string literal for a value from config (e.g. a segment label), safe on every warehouse.
+  A SQL string literal for a value from config (e.g. a group label), safe on every warehouse.
       pocore_helpers__string_literal("Donors who've lapsed")
         -> BigQuery: 'Donors who\'ve lapsed'     (BigQuery has no '' escape: it reads two literals)
         -> others:   'Donors who''ve lapsed'     (standard SQL)

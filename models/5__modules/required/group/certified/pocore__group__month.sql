@@ -1,6 +1,6 @@
 {#
-  pocore__segment__month — ONE ROW PER SEGMENT x MONTH-END (whole segments only).
-  A plain time series: how big each segment was, how many people moved in and out that
+  pocore__group__month — ONE ROW PER GROUP x MONTH-END (whole groups only).
+  A plain time series: how big each group was, how many people moved in and out that
   month, and how its people behaved afterwards (every KPI window as columns):
   gave_rate_<N>d (gave a qualifying gift), retained_rate_<N>d (still an active sustainer
   N days later: the one that matters for sustainers; 90+ days only), revenue_per_person_<N>d
@@ -9,16 +9,16 @@
   Use is_complete_<N>d to drop months whose window hasn't finished yet.
 
   THE GROUP'S OWN MEASURE (v0.3.7), so simple queries need no CASE over measure columns:
-    primary_kpi, primary_window_days   the group's measure and headline window (as pocore__segment)
+    primary_kpi, primary_window_days   the group's measure and headline window (as pocore__group)
     primary_rate, primary_count,       that measure at that window: the headline number
     is_primary_complete
     primary_rate_<N>d, primary_count_<N>d   that measure at every window (null where the measure
                                        has no such window: retained at 30 days)
-  e.g. trend:  select month_end_date, primary_rate from ... where segment_id = 'x' and is_primary_complete
-  people_in_segment is a point-in-time count: don't add it across months.
+  e.g. trend:  select month_end_date, primary_rate from ... where group_id = 'x' and is_primary_complete
+  people_in_group is a point-in-time count: don't add it across months.
   people_entering / people_leaving ARE monthly flows: adding them across months is fine.
   gave_count_<N>d / retained_count_<N>d are the numerators behind the rates, so a BI tool can
-  pool rates correctly over any set of months: sum(gave_count_90d) / sum(people_in_segment)
+  pool rates correctly over any set of months: sum(gave_count_90d) / sum(people_in_group)
   (filter is_complete_90d first). Never average the rate columns.
 #}
 
@@ -35,15 +35,15 @@ pocore_group__flows__month as (select * from {{ ref('pocore_group__flows__month'
 outcomes as (
 
     select
-        segment_id,
-        segment_label,
-        segment_source,
-        parent_segment_id,
+        group_id,
+        group_label,
+        group_source,
+        parent_group_id,
         split_by,
         split_value,
-        segment_set_id,
+        group_set_id,
         anchor_date                                                                       as snapshot_date,
-        max(n)                                                                            as people_in_segment
+        max(n)                                                                            as people_in_group
         {%- for w in windows %},
         max(case when kpi_id = 'gave' and outcome_window_days = {{ w }} then value end)              as gave_rate_{{ w }}d,
         {%- if w in retained_windows %}
@@ -59,8 +59,8 @@ outcomes as (
                  then case when is_window_complete then 1 else 0 end end) = 1               as is_complete_{{ w }}d
         {%- endfor %}
     from pocore_group__baselines__month
-    group by segment_id, segment_label, segment_source, parent_segment_id, split_by, split_value,
-             segment_set_id, anchor_date
+    group by group_id, group_label, group_source, parent_group_id, split_by, split_value,
+             group_set_id, anchor_date
 
 ),
 
@@ -89,20 +89,20 @@ with_primary as (
         {%- endfor %}
     from outcomes
     left join primary_choices
-        on primary_choices.segment_id = coalesce(outcomes.parent_segment_id, '__remainder__')
+        on primary_choices.group_id = coalesce(outcomes.parent_group_id, '__remainder__')
 
 )
 
 select
-    with_primary.segment_id,
-    with_primary.segment_label,
-    with_primary.segment_source,
-    with_primary.parent_segment_id,
+    with_primary.group_id,
+    with_primary.group_label,
+    with_primary.group_source,
+    with_primary.parent_group_id,
     with_primary.split_by,
     with_primary.split_value,
-    with_primary.segment_set_id,
+    with_primary.group_set_id,
     with_primary.snapshot_date                                                                   as month_end_date,
-    with_primary.people_in_segment,
+    with_primary.people_in_group,
     pocore_group__flows__month.donors_entering                                                                 as people_entering,
     pocore_group__flows__month.donors_leaving                                                                  as people_leaving,
     with_primary.primary_kpi,
@@ -141,5 +141,5 @@ select
     {%- endfor %}
 from with_primary
 left join pocore_group__flows__month
-    on  pocore_group__flows__month.segment_id    = with_primary.segment_id
+    on  pocore_group__flows__month.group_id    = with_primary.group_id
     and pocore_group__flows__month.snapshot_date = with_primary.snapshot_date

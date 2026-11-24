@@ -12,12 +12,12 @@ Status: **draft** · 2026-11-10 · dbt package name: `po_donor_engine`
 
 1. Builds its own **conform** models (raw → the canonical shape).
 2. Points the engine at them with vars.
-3. Gets features, segments, KPIs and serving models without changing any engine code.
+3. Gets features, groups, KPIs and serving models without changing any engine code.
 
 **This spec covers day one only.** Day one means the outputs available from the two required inputs, `donors` and `gifts`:
 
-- **Segment baselines:** how big each segment is and how it historically performs on each KPI.
-- **Segment power:** what lift an experiment on that segment could detect, and how long it would take.
+- **Group baselines:** how big each group is and how it historically performs on each KPI.
+- **Group power:** what lift an experiment on that group could detect, and how long it would take.
 
 Experiments (assignment, treatment lists, results, compliance) get their own spec later. They must not require changes to this contract, only optional additions.
 
@@ -48,7 +48,7 @@ vars:
 
 **Where tables land:** the client's warehouse, through the client's dbt connection. By default the schema is `<client target schema>_pode` (e.g. `analytics_pode`, `dbt_chris_pode`). dbt always uses the **client's** `generate_schema_name` macro, including for engine models, so a client's custom schema scheme applies to the engine as well.
 
-**Names:** table name = model name (`pode_srv__segment_summary`, …). Canonical models are views; everything else is tables.
+**Names:** table name = model name (`pode_srv__group_summary`, …). Canonical models are views; everything else is tables.
 
 **Clients control all of it** from their own `dbt_project.yml`:
 
@@ -60,8 +60,8 @@ models:
       +materialized: table       # instead of view
     srv:
       +schema: reporting
-      pode_srv__segment_summary:
-        +alias: segment_summary  # rename one table
+      pode_srv__group_summary:
+        +alias: group_summary  # rename one table
 ```
 
 They can also override `generate_schema_name` / `generate_alias_name`, set `+database`, or disable parts with `+enabled: false`.
@@ -71,7 +71,7 @@ They can also override `generate_schema_name` / `generate_alias_name`, set `+dat
 | Extension | How | Supported? |
 |---|---|---|
 | Own models on top | `ref('pode_srv__…')` from the client project | Yes, the normal way |
-| Custom segments | YAML `cust_*_vN` rules (§5a) | Yes |
+| Custom groups | YAML `cust_*_vN` rules (§5a) | Yes |
 | Own Lightdash views | YAML on their own downstream models | Yes |
 | Edit an engine model | Not possible: `dbt deps` overwrites package files | No |
 | Replace an engine model | `+enabled: false` plus their own model | Discouraged: it leaves the engine's guarantees and may break on upgrade |
@@ -86,23 +86,23 @@ Everything a client exposes lives in one schema, `pode_srv` (D13). Each table is
 
 | table | grain | answers |
 |---|---|---|
-| `pode_srv__segment_summary` | segment | Who to focus on: size now, headline rate, detectable lift, testable?, value per +1 point |
-| `pode_srv__segment_summary_by_slice` | segment × slice (`slice_by` = a breakdown column) | The same, split by channel / region / first-gift band / `attr_*` |
-| `pode_srv__test_planning` | segment × window × holdout % | Compare test options: detectable lift vs donors held out |
-| `pode_srv__segment_trend` | segment × month-end | Size, entering / leaving, and gave / retained / revenue rates over time |
-| `pode_srv__segment_roster` | segment × donor (latest month-end) | Who is in each segment, to act on |
+| `pode_srv__group_summary` | group | Who to focus on: size now, headline rate, detectable lift, testable?, value per +1 point |
+| `pode_srv__group_summary_by_slice` | group × slice (`slice_by` = a breakdown column) | The same, split by channel / region / first-gift band / `attr_*` |
+| `pode_srv__test_planning` | group × window × holdout % | Compare test options: detectable lift vs donors held out |
+| `pode_srv__group_trend` | group × month-end | Size, entering / leaving, and gave / retained / revenue rates over time |
+| `pode_srv__group_roster` | group × donor (latest month-end) | Who is in each group, to act on |
 | `pode_srv__donor_movement` | fiscal year | New / second year / continuing / reactivated / reactivated second year / lost; retention |
 | `pode_srv__donor_cohorts` | acquisition cohort × year | Each first-gift cohort through later years |
 | `pode_srv__sustainer_ltv` | start cohort × slice | Sustainers started, survival at month N, LTV at N months; CPA and LTV:CPA when cost is supplied |
 | `pode_srv__stage_transitions` | from month-end × horizon (3/12/24/36 months) × from stage × to stage | The donor journey: of donors in a stage then, where are they N months later; `is_latest` for an always-current view |
 | `pode_srv__reconciliation` | month × category × donor type × eligibility × gift type × refund | Sign-off totals; every gift once, additive (§6.4) |
-| `pode_srv__project_health` | check (finance: per year) | Is this project healthy? Freshness, gaps, recurring linking, empty segments, finance match (§6.4) |
+| `pode_srv__project_health` | check (finance: per year) | Is this project healthy? Freshness, gaps, recurring linking, empty groups, finance match (§6.4) |
 
-### 3.1 Baselines and power (internal: `pode_mtr__segment_baselines`, `pode_mtr__segment_power`)
+### 3.1 Baselines and power (internal: `pode_mtr__group_baselines`, `pode_mtr__group_power`)
 
-**Baselines:** one row per segment × breakdown × KPI × window × anchor date: `n` (members on the anchor, always the denominator), `value`, `variance` (`p(1−p)` for rates, sample variance for means), `is_window_complete` (incomplete rows are kept, flagged, never pooled). Rate KPIs also carry `revenue_gap_per_success`: capped window revenue among donors who succeeded minus among those who didn't.
+**Baselines:** one row per group × breakdown × KPI × window × anchor date: `n` (members on the anchor, always the denominator), `value`, `variance` (`p(1−p)` for rates, sample variance for means), `is_window_complete` (incomplete rows are kept, flagged, never pooled). Rate KPIs also carry `revenue_gap_per_success`: capped window revenue among donors who succeeded minus among those who didn't.
 
-**Power:** one row per segment × breakdown × KPI × window × lookback × holdout %. Three baselines, all pooled over complete anchors (Σ outcomes ÷ Σ n):
+**Power:** one row per group × breakdown × KPI × window × lookback × holdout %. Three baselines, all pooled over complete anchors (Σ outcomes ÷ Σ n):
 
 | baseline | anchors | use |
 |---|---|---|
@@ -114,7 +114,7 @@ Everything a client exposes lives in one schema, `pode_srv` (D13). Each table is
 
 MDE = (z₁₋α/₂ + z_power) · √(variance · (1/n_treatment + 1/n_holdout)). `is_testable` = relative MDE ≤ `max_plausible_relative_lift` (0.5). `readout_date_if_launched_now` = `as_of + outcome_window_days`.
 
-**Headline choices per segment:** `primary_window_days` (new 90, lapsed 180, others 365) and `primary_kpi` (`retained` for sustainers, `gave` otherwise); custom segments may set both. **Value** (summary only; observational, rough sizing, not a forecast): `value_per_point` = donors × 1 point × `revenue_gap_recent`, what each +1 point on the KPI is worth; the headline for ranking segments. `value_of_detectable_lift` = the same at the smallest provable lift; a floor for test planning only, because it shrinks as tests get more sensitive (bigger holdouts) and grows only with √n. (Replaced `opportunity_*` in v0.1.1-prototype.)
+**Headline choices per group:** `primary_window_days` (new 90, lapsed 180, others 365) and `primary_kpi` (`retained` for sustainers, `gave` otherwise); custom groups may set both. **Value** (summary only; observational, rough sizing, not a forecast): `value_per_point` = donors × 1 point × `revenue_gap_recent`, what each +1 point on the KPI is worth; the headline for ranking groups. `value_of_detectable_lift` = the same at the smallest provable lift; a floor for test planning only, because it shrinks as tests get more sensitive (bigger holdouts) and grows only with √n. (Replaced `opportunity_*` in v0.1.1-prototype.)
 
 **Statistical settings are levers, but they get locked.**
 
@@ -142,16 +142,16 @@ Day-one deliverable phrased for the client: *"A 15% holdout on lapsed donors det
 
 ## 4. KPIs
 
-**General form:** for donors in segment S on anchor date A, the outcome happens in `(A, A + window]`. The denominator is every member of S on A. Experiments reuse the same definition with A = experiment start date, which keeps the baseline you sold and the metric you report identical.
+**General form:** for donors in group S on anchor date A, the outcome happens in `(A, A + window]`. The denominator is every member of S on A. Experiments reuse the same definition with A = experiment start date, which keeps the baseline you sold and the metric you report identical.
 
-**The KPI rule:** every experiment KPI has **one donor per denominator unit** (segment members or assigned donors) and is either a **rate** or a **capped mean**. Anything else (ratio metrics like average gift size, medians, survival curves) is **descriptive only**. It can appear in baselines or Lightdash, but never in power or results.
+**The KPI rule:** every experiment KPI has **one donor per denominator unit** (group members or assigned donors) and is either a **rate** or a **capped mean**. Anything else (ratio metrics like average gift size, medians, survival curves) is **descriptive only**. It can appear in baselines or Lightdash, but never in power or results.
 
 **The window is a column, not part of the name.** One KPI at several `outcome_window_days` gives a cumulative curve (30 / 60 / 90 …). Only the window agreed before launch counts as the result. Earlier windows are labelled interim.
 
-| kpi_id | metric_type | typical segment / framing | default windows |
+| kpi_id | metric_type | typical group / framing | default windows |
 |---|---|---|---|
 | `gave` | rate | new donors ("second gift"), lapsed ("reactivation"), active one-time ("retention") | 90 / 180 / 365 |
-| `retained` | rate | sustainers ("still giving monthly N days later"): a recurring payment in the `recurring_active_days` (45) up to day A + N, the same rule as the sustainer segment | 90 / 180 / 365 |
+| `retained` | rate | sustainers ("still giving monthly N days later"): a recurring payment in the `recurring_active_days` (45) up to day A + N, the same rule as the sustainer group | 90 / 180 / 365 |
 | `revenue_per_donor` | mean (capped) | any | 90 / 180 / 365 |
 
 **Qualifying gift** (counts for `gave`): a non-refund gift with `is_kpi_eligible = true` where either
@@ -173,14 +173,14 @@ Routine recurring payments don't count. **Upgrades to an existing schedule don't
 
 **Grain:** `donor_id × snapshot_date`. Every value is computed only from gifts with `gift_date <= snapshot_date` **and `is_kpi_eligible = true`**. A donor appears only from their `created_at`.
 
-**Default segment filter** (applied unless a segment explicitly overrides it): `donor_type = 'individual' and not is_deceased`.
+**Default group filter** (applied unless a group explicitly overrides it): `donor_type = 'individual' and not is_deceased`.
 
 **As-of dates (snapshots):** month-ends for the last `snapshot_lookback_months` (default **72**, i.e. 6 years) up to `var('as_of')`. Not daily. (Experiment readouts anchor on the client's `assigned_date` in their own model, §10.)
 - **This limits snapshot dates, not history.** Features at every snapshot still use all past gifts (lifetime giving, first gift date, …).
 - **Validation:** the build fails if `snapshot_lookback_months < max(baseline_lookback_months) + max(KPI window in months)` (currently 24 + 12 = 36). Below that, power can't be computed.
 - **Size check:** about donors × 72 rows. For 200k donors that's ~14M rows, which is fine as a full rebuild on BigQuery or Snowflake.
 - **Built design (simple on purpose):** each donor × snapshot date joins that donor's gifts dated on or before it, aggregated with plain conditional sums. About 5s / 3.1M rows on BigQuery for the 77k-donor synthetic data. Optimization path for large clients (around 1M donors), in order; none changes outputs (PATCH releases):
-  1. partition / cluster the `ftr` and `seg` tables by `snapshot_date` (then `segment_id`);
+  1. partition / cluster the `ftr` and `seg` tables by `snapshot_date` (then `group_id`);
   2. incremental snapshot (new month-ends plus a reprocessed trailing window), required to match `--full-refresh` exactly (tested);
   3. shorter `snapshot_lookback_months` (minimum 36);
   4. a windowed running-total design.
@@ -198,18 +198,18 @@ Routine recurring payments don't count. **Upgrades to an existing schedule don't
 | `net_giving_ytd` | gifts | net eligible giving, Jan 1 to `snapshot_date` |
 | `net_giving_prior_year` | gifts | net eligible giving in the full previous calendar year |
 | `gave_prior_year_not_ytd` | gifts | calendar-year LYBUNT. Depends on time of year: in February almost everyone qualifies, so it's most meaningful from about Q3 (say so in the column description). |
-| `is_recurring_active` | gifts, or `recurring_schedules` if provided | **Default:** heuristic, a recurring payment within the last N days (var, default 45). Good enough on day one because day-one KPIs don't target sustainers; its job is to keep them out of other segments. **If `recurring_schedules_model` is set:** active means `start_date <= snapshot_date` and (`cancel_date` is null or `cancel_date > snapshot_date`). Same column, more accurate. Required for sustainer KPIs. |
+| `is_recurring_active` | gifts, or `recurring_schedules` if provided | **Default:** heuristic, a recurring payment within the last N days (var, default 45). Good enough on day one because day-one KPIs don't target sustainers; its job is to keep them out of other groups. **If `recurring_schedules_model` is set:** active means `start_date <= snapshot_date` and (`cancel_date` is null or `cancel_date > snapshot_date`). Same column, more accurate. Required for sustainer KPIs. |
 | `lifecycle_stage` | the above + `donors.created_at` | exactly one of `sustainer` / `new` / `active` / `lapsed` / `deep_lapsed` / `prospect`; fixed rules (see D6) |
 | `acquisition_channel`, `acquisition_theme` | donors | current value; allowed under D7 |
 | `region` | donors | current value; allowed under D7 |
 
 Not on day one: reachable channels (needs `contactability_events`).
 
-The `pode_ftr__donor_snapshot` column list is the **menu for segment rules**. It must be documented clearly (column descriptions in YAML).
+The `pode_ftr__donor_snapshot` column list is the **menu for group rules**. It must be documented clearly (column descriptions in YAML).
 
 ---
 
-## 5a. Segments
+## 5a. Groups
 
 ### Standard vs custom
 
@@ -218,15 +218,15 @@ The `pode_ftr__donor_snapshot` column list is the **menu for segment rules**. It
 | **Standard** | engine package; identical for every client | engine release only | `std_` |
 | **Custom** | client `dbt_project.yml` | you and the client, per client | `cust_` |
 
-- Every client gets all standard segments automatically: `std_prospect_v1`, `std_new_v1`, `std_active_v1`, `std_lapsed_v1`, `std_deep_lapsed_v1`, `std_sustainer_v1`. **A client with no custom segments configures nothing.**
-- Standard segments can't be edited per client. "Lapsed, but our way" becomes a custom segment (`cust_lapsed_clientx_v1`), so standard segments stay comparable across clients.
+- Every client gets all standard groups automatically: `std_prospect_v1`, `std_new_v1`, `std_active_v1`, `std_lapsed_v1`, `std_deep_lapsed_v1`, `std_sustainer_v1`. **A client with no custom groups configures nothing.**
+- Standard groups can't be edited per client. "Lapsed, but our way" becomes a custom group (`cust_lapsed_clientx_v1`), so standard groups stay comparable across clients.
 
 ### Config
 
 ```yaml
 vars:
   po_donor_engine:
-    segments:
+    groups:
       - id: cust_lapsed_mid_value_v1
         label: "Lapsed, $100+ lifetime"
         rule: "lifecycle_stage = 'lapsed' and net_giving_lifetime >= 100"
@@ -234,15 +234,22 @@ vars:
 
 - **Naming:** lowercase snake_case, `std_` / `cust_` prefix, ending in `_v<N>`. The engine validates this at compile time. A custom id without `cust_`, or a duplicate id, fails the build.
 - **Versioning:** to change a rule, add a new id with the next `_v<N>`. Never edit an existing one. Git is the history.
-- **Overlap is allowed.** A donor can be in several segments. Priority between competing *experiments* is an experiment-phase concern, not a segment property.
+- **Overlap is allowed.** A donor can be in several groups. Priority between competing *experiments* is an experiment-phase concern, not a group property.
+
+### Terms: who joined when
+
+`pocore__person__group__term` has one row per person x group x term: each unbroken stretch of month-ends
+a person spent in a group (`joined_month_end`, `left_month_end` null while still in, `term_number` 2 after
+leaving and coming back). Month-end precision. `is_joined_before_data` marks people already in the group at
+the engine's first month-end (real start unknown).
 
 ### How a rule works
 
-A rule is a SQL `WHERE` condition over `pode_ftr__donor_snapshot` columns. The engine compiles every segment, standard and custom, into one model:
+A rule is a SQL `WHERE` condition over `pode_ftr__donor_snapshot` columns. The engine compiles every group, standard and custom, into one model:
 
 ```sql
 -- pode_seg__membership (compiled)
-select 'cust_lapsed_mid_value_v1' as segment_id, 'custom' as segment_source, donor_id, snapshot_date
+select 'cust_lapsed_mid_value_v1' as group_id, 'custom' as group_source, donor_id, snapshot_date
 from {{ ref('pode_ftr__donor_snapshot') }}
 where (lifecycle_stage = 'lapsed' and net_giving_lifetime >= 100)   -- rule, always wrapped in brackets
   and donor_type = 'individual' and not is_deceased                 -- default filter, added automatically
@@ -250,14 +257,14 @@ union all
 ...
 ```
 
-- **Grain:** `segment_id × donor_id × snapshot_date`. Baselines, power and (later) experiment balance checks all read from this model.
+- **Grain:** `group_id × donor_id × snapshot_date`. Baselines, power and (later) experiment balance checks all read from this model.
 - The query reads only `pode_ftr__donor_snapshot`, so a rule that references any other column fails at compile time. That is how "features only" is enforced.
 - The brackets stop an `or` in a rule from escaping the default filter.
 - Rules are raw SQL. That's fine while only we write them; a client-facing editor would need validation first (out of scope).
 
-### Segment profile (sign-off)
+### Group profile (sign-off)
 
-Before a segment is used for planning or an experiment, a **segment profile** is reviewed with the client: size, lifecycle mix, giving bands, region. It catches rules that compile but select the wrong people. The usual causes are nulls (`region != 'ON'` drops donors with no region), `>` vs `>=`, or a different idea of what "lapsed" means. This is the segment equivalent of the reconciliation sign-off.
+Before a group is used for planning or an experiment, a **group profile** is reviewed with the client: size, lifecycle mix, giving bands, region. It catches rules that compile but select the wrong people. The usual causes are nulls (`region != 'ON'` drops donors with no region), `>` vs `>=`, or a different idea of what "lapsed" means. This is the group equivalent of the reconciliation sign-off.
 
 ### Engine version pinning
 
@@ -276,8 +283,8 @@ A rule's text can stay the same while its meaning changes, if an engine release 
 |---|---|---|---|---|
 | `donor_id` | string | yes | not_null, unique | everything |
 | `created_at` | date | yes | not_null; `<= as_of` (warn) | when a prospect exists; `prospect` stage |
-| `donor_type` | string | yes | accepted: `individual`, `organization` | default segment filter; reconciliation breakdown |
-| `is_deceased` | boolean | yes | not_null | default segment filter (never in a treatment list) |
+| `donor_type` | string | yes | accepted: `individual`, `organization` | default group filter; reconciliation breakdown |
+| `is_deceased` | boolean | yes | not_null | default group filter (never in a treatment list) |
 | `region` | string | nullable | — | feature `region` |
 | `acquisition_channel` | string | nullable | — | feature `acquisition_channel` |
 | `acquisition_theme` | string | nullable | — | feature `acquisition_theme` |
@@ -361,12 +368,12 @@ Two serving tables (in `pode_srv`, D13: client and consultant both read them):
 | `recurring_share_drop` | latest complete month's recurring share < half the prior 12 months' |
 | `suspected_unlinked_recurring` | any (same logic as the warn test, shared macro) |
 | `eligible_share_12m`, `active_donors_12m`, `donors_total`, `gifts_total` | info |
-| `empty_segments` | any segment has no donors at the latest month-end |
+| `empty_groups` | any group has no donors at the latest month-end |
 | `finance_match` (per year) | engine net revenue (all gifts) differs from finance by more than `finance_tolerance_pct` (default 1) |
 
 **Finance totals (optional input):** the client points `finance_totals_model` at a model or seed with `(giving_year, finance_revenue)`, the finance-reported (usually audited) revenue. Not set: one `finance_match` row says "not supplied". **Phase 1 is finished when `finance_match` is ok for the agreed years**, not when the tests pass; when it warns, `pode_srv__reconciliation` shows where the gap is.
 
-Thresholds are fixed numbers until a client needs different ones. The check list grows only when a real conform surprises us. Data-quality judgments (are the regions right?) belong in the segment profile review (§5a), not here.
+Thresholds are fixed numbers until a client needs different ones. The check list grows only when a real conform surprises us. Data-quality judgments (are the regions right?) belong in the group profile review (§5a), not here.
 
 ### 6.5 Extra (client-chosen) columns: `attr_*`
 
@@ -380,7 +387,7 @@ vars:
 ```
 
 - **Companion models, not the contracted ones.** The enforced contracts need a fixed column list, so extras go to `pode_can__donor_attributes` (`donor_id` + `attr_*`) and `pode_can__gift_attributes` (`gift_id` + `attr_*`), both built from the **same** conform models. There is nothing extra for the client to build. Values pass through as-is (no casting).
-- **Donor attributes join into `pode_ftr__donor_snapshot`** as `attr_<name>` columns, so they work in segment rules (`rule: "attr_is_board_member"`) and in `baseline_breakdowns` (`[acquisition_channel, attr_wealth_rating]`).
+- **Donor attributes join into `pode_ftr__donor_snapshot`** as `attr_<name>` columns, so they work in group rules (`rule: "attr_is_board_member"`) and in `baseline_breakdowns` (`[acquisition_channel, attr_wealth_rating]`).
 - **Gift attributes** are available at gift level on day one. Donor-level features derived from them (e.g. "gave to the spring appeal") are a later step.
 - **D7 applies:** current values only, so donor attributes must not change *because of* giving (fine: board member, volunteer, screened wealth rating; never: donor status, major-donor flags). Time-aware attributes are the upgrade path (§6.3).
 - Empty lists (the default) change nothing.
@@ -397,7 +404,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 
 | module | models | needs |
 |---|---|---|
-| core (always on) | can, snapshot, outcomes, segments, baselines, power, summary, trend, roster, test planning, movement, cohorts | donors + gifts |
+| core (always on) | can, snapshot, outcomes, groups, baselines, power, summary, trend, roster, test planning, movement, cohorts | donors + gifts |
 | `sustainers` | `pode_mtr__sustainer_month`, `pode_srv__sustainer_ltv` | recurring gifts (cost optional) |
 | future | experiments, upgrades, contact guardrails | `experiments` + `experiment_assignments` (§10), `recurring_schedules`, contactability (§6.3) |
 
@@ -424,7 +431,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 - **D5 Currency and timezone:**
   - A single reporting currency; multi-currency is out of scope.
   - `gift_date` is the client's **local** date. Conform converts timestamps before truncating, so a gift at 11pm Pacific on Dec 31 stays in the right fiscal year and year-end campaign.
-- **D6 Lifecycle thresholds: fixed in the engine, not overridable per client.** Standard segments are built on `lifecycle_stage`, so they must mean the same thing everywhere. A client who wants different thresholds writes a custom segment on the raw features (e.g. `days_since_last_gift between 548 and 1095`).
+- **D6 Lifecycle thresholds: fixed in the engine, not overridable per client.** Standard groups are built on `lifecycle_stage`, so they must mean the same thing everywhere. A client who wants different thresholds writes a custom group on the raw features (e.g. `days_since_last_gift between 548 and 1095`).
   - **Exactly one stage per donor.** Rules are checked in this order, and the first match wins. Gifts used: eligible, positive (non-refund), `gift_date <= snapshot_date`.
 
     | order | stage | rule (days = `snapshot_date − date`) |
@@ -438,7 +445,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 
   - **Days, not months:** exact and the same on every warehouse. Month, year and fiscal-year *features* are derived from the stored dates (calendar-year features on day one; months and fiscal year later, via a cross-warehouse macro).
   - **Combinations use flags, not stages:** `is_new_donor`, `is_recurring_active`, `is_reactivated` (§5).
-  - **Refunds and recency (option a):** recency ignores refunds, so a donor whose only gift was refunded stays `new`/`active`. The count of affected donors appears in the segment profile. Upgrade path: an optional `original_gift_id` on refund rows.
+  - **Refunds and recency (option a):** recency ignores refunds, so a donor whose only gift was refunded stays `new`/`active`. The count of affected donors appears in the group profile. Upgrade path: an optional `original_gift_id` on refund rows.
   - **Exact edges:** 365 days = `active`, 366 = `lapsed`; 730 = `lapsed`, 731 = `deep_lapsed`. Tests check these dates.
   - **Changing thresholds is a breaking (major) engine release.** Adding features or flags is not.
 - **D7 Current-value attributes:**
@@ -446,7 +453,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
   - Never accepted when they change *because of* giving (status, major-donor flags, client lifecycle fields).
   - Upgrade path: the optional `donor_attribute_history` input (§6.3). This is non-breaking.
   - Recommended for every client from day one: a dbt snapshot of the donors conform model. History can only be collected going forward, so it's cheap insurance even before the engine uses it.
-- **D8 Segment config:** custom segment rules live in YAML (vars), not seeds. YAML is read at compile time with no warehouse round-trip, and it is versioned in git. Details are in §5a.
+- **D8 Group config:** custom group rules live in YAML (vars), not seeds. YAML is read at compile time with no warehouse round-trip, and it is versioned in git. Details are in §5a.
 - **D9 The engine is always idempotent.** Same inputs and same `as_of` give the same outputs, and any model can be fully rebuilt at any time. Real-world events (experiment launches, sends) come in as **inputs**, never as stateful models.
 - **D10 Warehouses:**
   - **BigQuery** (demo/dev) and **DuckDB/MotherDuck** are first-class from day one. `integration_tests/` run on local DuckDB: fast, free, no credentials, and it keeps the SQL portable.
@@ -459,15 +466,15 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
     4. A CTE with the same name as its column (`select current_year from current_year` is a struct on BigQuery).
     5. `dbt.generate_series` yields decimals on BigQuery: cast to `dbt.type_int()` when used as a year or count.
     6. Jinja: a SQL `--` comment right before a `{%-` block can swallow the following SQL (whitespace trimming).
-    7. Doubled-quote escapes in string literals (`'month''s'`): BigQuery reads two adjacent literals. Reword fixed text; quote config values (e.g. segment labels) with `pode_string_literal()`.
-    8. `least()` / `greatest()`: NULL handling differs (BigQuery, Snowflake and Databricks return NULL if any argument is NULL; Postgres, Redshift and DuckDB ignore NULLs), and SQL Server only has them from 2022. Use `pocore_helpers__clamp(expr, low, high)` (a plain `case`). Found in v0.2.0: `greatest(NULL, 0)` in segment power returned 0 on DuckDB and NULL on BigQuery.
+    7. Doubled-quote escapes in string literals (`'month''s'`): BigQuery reads two adjacent literals. Reword fixed text; quote config values (e.g. group labels) with `pode_string_literal()`.
+    8. `least()` / `greatest()`: NULL handling differs (BigQuery, Snowflake and Databricks return NULL if any argument is NULL; Postgres, Redshift and DuckDB ignore NULLs), and SQL Server only has them from 2022. Use `pocore_helpers__clamp(expr, low, high)` (a plain `case`). Found in v0.2.0: `greatest(NULL, 0)` in group power returned 0 on DuckDB and NULL on BigQuery.
 - **D11 Z-values for power** come from a lookup table in the engine macro `pode_z()` (probability → z). SQL has no inverse-normal function and dbt Jinja has no `math` module. An α or power value not in the table fails the build clearly; add a row to support it. (Originally specified as a seed; a macro is simpler, with no seed loading or column-type issues.)
 - **D12 Versioning (semantic versioning: MAJOR.MINOR.PATCH):**
 
   | bump | when | examples |
   |---|---|---|
-  | MAJOR | existing outputs change meaning or value, or something breaks | threshold change; feature calculated differently; standard segment redefined; new **required** contract column; renamed or removed output column; **any bug fix that changes output numbers** |
-  | MINOR | additions only; existing numbers unchanged | new feature, flag, KPI, standard segment, optional input, serving model |
+  | MAJOR | existing outputs change meaning or value, or something breaks | threshold change; feature calculated differently; standard group redefined; new **required** contract column; renamed or removed output column; **any bug fix that changes output numbers** |
+  | MINOR | additions only; existing numbers unchanged | new feature, flag, KPI, standard group, optional input, serving model |
   | PATCH | no output value changes | docs, performance, crash fixes, a new warehouse's dispatch macro |
 
   - Clients pin an **exact tag** in `packages.yml` (`revision: v1.3.0`), never a branch or a range. Upgrades are deliberate.
@@ -482,9 +489,9 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
   |---|---|---|---|
   | `can` | canonical: checks inputs that conform has already standardized (contract, casts, tests) | `pode_can__donors`, `pode_can__gifts` | no |
   | `ftr` | features | `pode_ftr__donor_snapshot`, `pode_ftr__kpi_outcomes` | `pode_ftr__donor_snapshot` for exploration |
-  | `seg` | segments | `pode_seg__membership`, `pode_seg__profile` | `pode_seg__profile` |
-  | `mtr` | internal metrics: full calculation tables (all KPIs, windows, slices, lookbacks, holdouts) | `pode_mtr__segment_baselines`, `pode_mtr__segment_power` | no |
-  | `srv` | **serving: the only exposed layer, in its own schema (`pode_srv`)** | `pode_srv__segment_summary`, `pode_srv__segment_summary_by_slice`, `pode_srv__segment_trend`, `pode_srv__test_planning`, `pode_srv__segment_roster` | yes, all |
+  | `seg` | groups | `pode_seg__membership`, `pode_seg__profile` | `pode_seg__profile` |
+  | `mtr` | internal metrics: full calculation tables (all KPIs, windows, slices, lookbacks, holdouts) | `pode_mtr__group_baselines`, `pode_mtr__group_power` | no |
+  | `srv` | **serving: the only exposed layer, in its own schema (`pode_srv`)** | `pode_srv__group_summary`, `pode_srv__group_summary_by_slice`, `pode_srv__group_trend`, `pode_srv__test_planning`, `pode_srv__group_roster` | yes, all |
 
   **Date naming (one term, one meaning):**
 
@@ -493,8 +500,8 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
   | `as_of` (var) | the pipeline cutoff passed in (D3) |
   | `snapshot_date` | the month-end a row describes; the latest one is the last month-end on or before `as_of` |
   | `anchor_date` | a snapshot date used as the start of a KPI window (outcomes, internal metrics) |
-  | `donors_at_snapshot` | donors in the segment on `snapshot_date` |
-  | `outcome_window_days` | the follow-up period a KPI is measured over: "did they give within N days after the snapshot/anchor date?" Each segment has a primary one (new 90, lapsed 180, others 365; custom via `primary_window_days`) |
+  | `donors_at_snapshot` | donors in the group on `snapshot_date` |
+  | `outcome_window_days` | the follow-up period a KPI is measured over: "did they give within N days after the snapshot/anchor date?" Each group has a primary one (new 90, lapsed 180, others 365; custom via `primary_window_days`) |
 
   **Serving rule:** every `srv` row is a final answer at its stated grain, and the table's obvious grouping is correct. Each description starts with "One row per …". All logic lives in SQL; BI metadata is labels only (physical-first: works the same in any BI tool or LLM). **Client workflow:** conform to the contract → run the engine → point BI tools and LLMs at the `pode_srv` schema only.
   | `exp` / `sim` | future: experiments / demo simulation | — | — |
@@ -512,7 +519,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 1. **Zero-gift contacts:** included as prospects. `created_at` is required again, and a `prospect` stage is added.
 2. **Qualifying gift:** one-time gifts plus the first payment of a new schedule. Upgrades don't count on day one.
 3. **Revenue per donor:** added as a capped-mean KPI. The serving shape is generalized to `metric_type` / `value` / `variance`.
-4. **Segment config:** YAML (D8).
+4. **Group config:** YAML (D8).
 5. **Statistical settings:** defaults α = 0.05 two-sided, power = 0.8, holdout grid 10/15/20/30. Vars for planning; the values actually used are pre-registered in the client's `experiments` input (§10).
 6. **Baseline:** trailing 12 complete anchors by default, pooled (weighted by n). It's a lever, and the power table also shows 24 months for comparison (§3.2).
 7. **Current-value attributes:** accept the small error for region and acquisition; giving-driven fields are banned. SCD history is a future optional input (D7, §6.3).
@@ -520,7 +527,7 @@ Client switch: `vars: {po_donor_engine: {modules: {sustainers: false}}}`. Module
 
 ### Still open
 
-- ~~**Client-specific features in segment rules.**~~ **Resolved (§6.5):** extra columns from any conform model are passed through as `attr_*`. Donor attributes become snapshot columns usable in segment rules and breakdowns. Still open: turning **gift** attributes (campaign, appeal, payment method) into donor-level features, and time-aware (`valid_from`/`valid_to`) attributes.
+- ~~**Client-specific features in group rules.**~~ **Resolved (§6.5):** extra columns from any conform model are passed through as `attr_*`. Donor attributes become snapshot columns usable in group rules and breakdowns. Still open: turning **gift** attributes (campaign, appeal, payment method) into donor-level features, and time-aware (`valid_from`/`valid_to`) attributes.
 
 ---
 

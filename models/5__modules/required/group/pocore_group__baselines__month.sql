@@ -1,10 +1,10 @@
 {#
-  pocore_group__baselines__month — how each segment has historically performed (SPEC §3.1).
+  pocore_group__baselines__month — how each group has historically performed (SPEC §3.1).
   INTERNAL metrics layer: the full long table that the srv models read from. Not exposed —
-  it mixes whole-segment and slice rows, so naive aggregation double-counts.
-  One row per segment_id x kpi_id x outcome_window_days x anchor_date.
+  it mixes whole-group and slice rows, so naive aggregation double-counts.
+  One row per group_id x kpi_id x outcome_window_days x anchor_date.
 
-  For every segment at every anchor date: who was in it and what they did afterwards,
+  For every group at every anchor date: who was in it and what they did afterwards,
   aggregated. Reads FOUNDATION (pocore_group__membership__month and
   pocore_foundation__person__month), so every number traces back to rows an analyst can query.
     kpi 'gave'              metric_type 'rate'  value = share who gave,  variance = p(1-p)
@@ -16,8 +16,8 @@
   succeeded minus among those who didn't, over the same window. What one extra success has
   been worth, observationally; used for the srv opportunity estimate. Null for mean KPIs.
 
-  Splits and sets are just more segments (see pocore_group__membership__month): the descriptive
-  columns parent_segment_id / split_by / split_value / segment_set_id are carried through.
+  Splits and sets are just more groups (see pocore_group__membership__month): the descriptive
+  columns parent_group_id / split_by / split_value / group_set_id are carried through.
 
   Rows whose window hasn't fully elapsed are kept but flagged (is_window_complete = false);
   they are partial and must never be pooled or reported as final.
@@ -25,7 +25,7 @@
 
 {%- set windows = pocore_engine_config__kpi_windows() -%}
 {%- set measure_ids = pocore_engine_config__measure_ids() -%}
-{%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
+{%- set desc_cols = ['group_label', 'group_source', 'parent_group_id', 'split_by', 'split_value', 'group_set_id'] -%}
 {%- set float_type = dbt.type_float() -%}
 
 with
@@ -36,10 +36,10 @@ pocore_foundation__person__month_end as (select * from {{ ref('pocore_foundation
 
 joined as (
 
-    -- Built from FOUNDATION: who was in each segment at each month-end, joined to what they
+    -- Built from FOUNDATION: who was in each group at each month-end, joined to what they
     -- did afterwards (outcomes).
     select
-        pocore_group__membership__month.segment_id,
+        pocore_group__membership__month.group_id,
         {%- for c in desc_cols %}
         pocore_group__membership__month.{{ c }},
         {%- endfor %}
@@ -63,7 +63,7 @@ joined as (
 aggregated as (
 
     select
-        segment_id,
+        group_id,
         {%- for c in desc_cols %}
         {{ c }},
         {%- endfor %}
@@ -83,14 +83,14 @@ aggregated as (
         {%- if not loop.last %},{% endif %}
         {%- endfor %}
     from joined
-    group by segment_id, {{ desc_cols | join(', ') }}, anchor_date
+    group by group_id, {{ desc_cols | join(', ') }}, anchor_date
 
 )
 
 {% for w in windows %}
 {%- for k in measure_ids if w in pocore_engine_config__kpi_windows(k) %}
 select
-    segment_id, {{ desc_cols | join(', ') }},
+    group_id, {{ desc_cols | join(', ') }},
     '{{ k }}'                                                       as kpi_id,
     'rate'                                                          as metric_type,
     {{ w }}                                                         as outcome_window_days,
@@ -107,7 +107,7 @@ from aggregated
 union all
 {% endfor %}
 select
-    segment_id, {{ desc_cols | join(', ') }},
+    group_id, {{ desc_cols | join(', ') }},
     'revenue_per_donor'                                             as kpi_id,
     'mean'                                                          as metric_type,
     {{ w }}                                                         as outcome_window_days,

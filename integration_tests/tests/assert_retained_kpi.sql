@@ -29,9 +29,9 @@ wrong_outcomes as (
 ),
 
 wrong_summary_kpi as (
-    select segment_id as person_id, primary_kpi as detail
-    from {{ ref('pocore__segment') }}
-    where (segment_id = 'std_sustainer_v1') != (primary_kpi = 'retained')
+    select group_id as person_id, primary_kpi as detail
+    from {{ ref('pocore__group') }}
+    where (group_id = 'std_sustainer_v1') != (primary_kpi = 'retained')
 )
 
 select * from wrong_outcomes

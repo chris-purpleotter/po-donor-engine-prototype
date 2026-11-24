@@ -31,10 +31,10 @@ vars:
       - {source: gift, agg: max, column: amount, window: lifetime}
       - {source: gift, agg: days_since, label: recurring, where: "gift_type = 'recurring'", window: lifetime}
       - {source: gift, agg: any, window: ytd}
-    # Module group (required): segments, splits, sets and test-planning settings.
+    # Module group (required): groups, splits, sets and test-planning settings.
     module__group:
-      # Custom segments, as a client would add them (prove custom rules + attributes work).
-      segments:
+      # Custom groups, as a client would add them (prove custom rules + attributes work).
+      groups:
         - id: cust_lapsed_100_v1
           label: "Lapsed, $100+ lifetime"
           rule: "lifecycle_stage = 'lapsed' and net_giving_lifetime >= 100"
@@ -47,7 +47,7 @@ vars:
           rule: "not is_recurring_active"
           primary_kpi: started_monthly
           primary_window_days: 90
-        # split_by: also one segment per value (cust_givers_v1__web, cust_givers_v1__direct_mail ...)
+        # split_by: also one group per value (cust_givers_v1__web, cust_givers_v1__direct_mail ...)
         - id: cust_big_gift_v1
           label: "Gave $100+ in one gift"
           rule: "rollup_gift_count_100_plus_lifetime >= 1"
@@ -55,13 +55,13 @@ vars:
           label: "Has given"
           rule: "gift_count_lifetime > 0"
           split_by: acquisition_channel
-      # Break down a STANDARD segment without redefining it.
+      # Break down a STANDARD group without redefining it.
       standard_splits:
         std_lapsed_v1: region
       # A set: non-overlapping populations, first match wins, plus everyone else.
-      segment_sets:
+      group_sets:
         - id: set_lapsed_value_v1
-          segments: [cust_lapsed_100_v1, std_lapsed_v1]
+          groups: [cust_lapsed_100_v1, std_lapsed_v1]
           include_remainder: true
     module__cohort:
       # Short horizons so the 3-month fixture sustainer (D05) produces checkable numbers;

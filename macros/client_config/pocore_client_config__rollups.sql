@@ -1,6 +1,6 @@
 {#
   Custom rollups (client var `rollups`): extra person-level columns built from a row-level
-  source, as of each month-end, so segment rules and report dropdowns can use gift facts.
+  source, as of each month-end, so group rules and report dropdowns can use gift facts.
 
       rollups:
         - {source: gift, agg: count, label: 100_plus, where: "amount >= 100", window: lifetime}
@@ -9,9 +9,9 @@
 
   Column name, built by the engine:  rollup_{source}_{agg}[_{column}][_{label}]_{window}
       -> rollup_gift_count_100_plus_lifetime, rollup_gift_sum_amount_emergency_12m, rollup_gift_max_amount_12m
-  Change the definition and the name changes with it, so a segment rule using the old name
+  Change the definition and the name changes with it, so a group rule using the old name
   fails loudly instead of silently meaning something else. The one exception: changing a
-  `where` but keeping its `label`. Change the label too (like bumping a segment's _v1).
+  `where` but keeping its `label`. Change the label too (like bumping a group's _v1).
 
     source  the row-level model: gift (pocore_event__gift; eligible gifts only)
     agg     count | sum | max | min | any (true/false) | days_since (days since the latest match)

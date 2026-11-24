@@ -9,7 +9,7 @@
 
   Edit this only when the ENGINE gains a new standard column for every client: calculate it
   in pocore_rollup__person__month_end_lookback, then add its name here.
-  Used by: pocore_foundation__person__month_end and the group module (segment rules can use
+  Used by: pocore_foundation__person__month_end and the group module (group rules can use
   these; the looking-AHEAD outcome columns are deliberately not in this list, so rules can't peek).
 #}
 {% macro pocore_columns__person_month_end() %}

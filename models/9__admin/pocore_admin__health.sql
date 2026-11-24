@@ -1,7 +1,7 @@
 {#
   pocore_admin__health — ONE ROW PER CHECK (per year for finance_match).
   Things that are ALLOWED (they pass the dbt tests) but need a human look: sign-off totals,
-  stale or patchy loads, broken recurring linking, segments that select nobody.
+  stale or patchy loads, broken recurring linking, groups that select nobody.
   The dbt tests stop the build on broken data; this table doesn't repeat them.
 
     status   ok | warn | info (info = context, no threshold)
@@ -91,25 +91,25 @@ last_12m as (
 ),
 
 latest_members as (
-    select segment_id, count(*) as n
+    select group_id, count(*) as n
     from pocore_group__membership__month
     where month_end_date = (select max(month_end_date) from pocore_group__membership__month)
-    group by segment_id
+    group by group_id
 ),
 
-all_segments as (
-    {%- for s in pocore_client_config__all_segments() %}
-    select '{{ s.id }}' as segment_id {% if not loop.last %}union all{% endif %}
+all_groups as (
+    {%- for s in pocore_client_config__all_groups() %}
+    select '{{ s.id }}' as group_id {% if not loop.last %}union all{% endif %}
     {%- endfor %}
 ),
 
-empty_segments as (
+empty_groups as (
     select
         count(*)                                                                         as n,
-        {{ dbt.listagg('all_segments.segment_id', "', '", 'order by all_segments.segment_id') }}               as ids
-    from all_segments
-    left join latest_members on latest_members.segment_id = all_segments.segment_id
-    where latest_members.segment_id is null
+        {{ dbt.listagg('all_groups.group_id', "', '", 'order by all_groups.group_id') }}               as ids
+    from all_groups
+    left join latest_members on latest_members.group_id = all_groups.group_id
+    where latest_members.group_id is null
 ),
 
 {%- if finance_model %}
@@ -199,12 +199,12 @@ checks as (
     from gifts
 
     union all
-    select 'empty_segments', 'all',
-           'Segments with no donors at the latest month-end',
+    select 'empty_groups', 'all',
+           'Groups with no donors at the latest month-end',
            cast(n as {{ float }}), cast(0 as {{ float }}),
            case when n > 0 then 'warn' else 'ok' end,
            ids
-    from empty_segments
+    from empty_groups
 
     union all
     {%- if finance_model %}

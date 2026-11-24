@@ -3,7 +3,7 @@
 # See SPEC.md and DESIGN_v0.2.0.md for the design and decisions.
 
 name: 'po_core'
-version: '0.7.2'
+version: '0.8.0'
 config-version: 2
 
 # Refuse to run on untested dbt versions (widen deliberately after testing).
@@ -14,7 +14,7 @@ require-dbt-version: [">=1.11.0", "<1.12.0"]
 
 model-paths: ["models"]
 macro-paths: ["macros"]
-analysis-paths: ["analyses"]   # examples to copy (compiled, never built): e.g. the segment explorer
+analysis-paths: ["analyses"]   # examples to copy (compiled, never built): e.g. the group explorer
 seed-paths: ["seeds"]
 test-paths: ["tests"]
 
@@ -42,7 +42,7 @@ models:
     5__modules:
       required:                       # always built: insights and admin depend on it (no switch)
         group:
-          +tags: ['pocore_group']       # segments: who was in a situation at each month-end, and how they did
+          +tags: ['pocore_group']       # groups: who was in a situation at each month-end, and how they did
           certified:
             +schema: pocore             # CERTIFIED: this module's public outputs, where BI tools connect
             +tags: ['pocore_certified']
@@ -73,7 +73,7 @@ vars:
     people_model: people
     gifts_model: gifts
     # Extra columns brought through from the conform models, as attr_<name>
-    people_extra_columns: []          # person attributes: usable in segment rules, split_by and report dropdowns
+    people_extra_columns: []          # person attributes: usable in group rules, split_by and report dropdowns
     gifts_extra_columns: []
     # Time
     # `as_of` deliberately has NO default: it must come from the client (env var PO_AS_OF). See D3.
@@ -88,7 +88,7 @@ vars:
     # ── MODULES: one block per module, `module__<name>`; write only what you change ──────────────────
     # Every setting and its default: macros/client_config/pocore_client_config__module.sql
     # Optional modules take `enabled: false` to switch off (the rest of the block can stay).
-    module__group: {}       # REQUIRED (no switch): segments, standard_splits, segment_sets, test-planning settings
+    module__group: {}       # REQUIRED (no switch): groups, standard_splits, group_sets, test-planning settings
     module__movement: {}    # optional: yearly donor status (pocore__year, __cohort__year, __person__year)
     module__cohort: {}      # optional: monthly givers by months since they started (survival_months, ltv_horizons_months)
     module__insights: {}    # optional: the Supporter Insights report (client_name, window_days, dimensions ...)

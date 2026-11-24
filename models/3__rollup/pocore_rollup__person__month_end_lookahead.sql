@@ -18,12 +18,16 @@
                 `revenue_cap`. revenue_uncapped_Nd kept for descriptive use.
     retained_Nd 1 if the donor is still an active sustainer on day anchor + N: a recurring
                 payment in the `recurring_active_days` (45) days up to and including that day.
-                The same rule that puts donors in the sustainer segment (D6). The headline
+                The same rule that puts donors in the sustainer group (D6). The headline
                 KPI for sustainers, where "gave a qualifying gift" is the wrong question.
                 Needs N > recurring_active_days (only gifts after the anchor are looked at),
                 so there is no retained_30d.
     is_complete_Nd  the whole window has elapsed by as_of. Incomplete windows are
                     partial and must never be treated as final.
+    next_gave_date  the date of the first QUALIFYING gift in the longest window (365 days) after
+                    the month-end; null if none. The same gifts gave_Nd counts, so
+                    gave_Nd = 1 exactly when next_gave_date <= anchor + N days. It says WHEN the
+                    group's people gave (the report's "when they gave" bars, by calendar month).
 #}
 
 {%- set windows = pocore_engine_config__kpi_windows() -%}
@@ -67,6 +71,7 @@ outcomes as (
     select
         anchors.person_id,
         anchors.anchor_date,
+        min(case when gifts_flagged.is_qualifying then gifts_flagged.gift_date end)    as next_gave_date,
         {%- for w in windows %}
         max(case when gifts_flagged.is_qualifying
                   and gifts_flagged.gift_date <= cast({{ dbt.dateadd('day', w, 'anchors.anchor_date') }} as date)
@@ -96,6 +101,7 @@ outcomes as (
 select
     person_id,
     anchor_date,
+    next_gave_date,
     {%- for w in windows %}
     gave_{{ w }}d,
     started_monthly_{{ w }}d,

@@ -1,11 +1,11 @@
 -- Certified: our opinion, reshaped for business users (schema: pocore)
 -- Everything here is built from the foundation tables you've just walked through.
 
--- query: pocore__segment (one row per segment, today)
-select segment_id, people_in_segment, primary_kpi, outcome_window_days,
+-- query: pocore__group (one row per group, today)
+select group_id, people_in_group, primary_kpi, outcome_window_days,
        rate_recent, rate_same_season, detectable_lift, is_testable, value_per_point
-from main_pocore.pocore__segment
-order by segment_id;
+from main_pocore.pocore__group
+order by group_id;
 
 -- query: pocore__person__year for D04 and D05 (the journey: stage now vs a year ago)
 select person_id, fiscal_year, gave, amount_given, movement_status, stage_date, stage, stage_1y_ago

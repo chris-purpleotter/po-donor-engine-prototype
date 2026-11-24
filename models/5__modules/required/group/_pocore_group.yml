@@ -1,24 +1,24 @@
 version: 2
 
-# MODULE group: people in a situation at each month-end (segments), and how they did.
+# MODULE group: people in a situation at each month-end (groups), and how they did.
 
 models:
   - name: pocore_group__membership__month
     description: >
-      Who is in which segment at each month-end. One row per segment_id x person_id x
-      month_end_date. A segment is a named, versioned filter on the person's attributes and
+      Who is in which group at each month-end. One row per group_id x person_id x
+      month_end_date. A group is a named, versioned filter on the person's attributes and
       looking-back state (foundation person + month_end, outcomes deliberately not visible), plus
-      the default filter (individuals, not deceased). Segments may overlap.
+      the default filter (individuals, not deceased). Groups may overlap.
     data_tests:
       - pocore_unique_combination:
-          arguments: {columns: ['person_id', 'segment_id', 'month_end_date']}
+          arguments: {columns: ['person_id', 'group_id', 'month_end_date']}
     columns:
-      - name: segment_id
+      - name: group_id
         description: "std_* (engine-defined, identical for every client) or cust_* (client-defined), ending in _vN."
         data_tests: [not_null]
-      - name: segment_label
+      - name: group_label
         description: "Human-readable name, shown in Lightdash."
-      - name: segment_source
+      - name: group_source
         data_tests:
           - accepted_values:
               arguments:
@@ -28,23 +28,17 @@ models:
       - name: month_end_date
         data_tests: [not_null]
 
-  - name: pocore_group__segment
-    description: "The SEGMENT DIMENSION: one row per segment that has had members, with its label, source and split/set details."
-    data_tests:
-      - pocore_unique_combination:
-          arguments: {columns: ['segment_id']}
-
   - name: pocore_group__baselines__month
     description: >
-      One row per segment x KPI x window x anchor date: segment size (n) and the rate (gave,
-      retained) or capped mean (revenue_per_donor) for that anchor. Split and set segments are
-      ordinary segments here. Rows with is_window_complete = false are partial.
+      One row per group x KPI x window x anchor date: group size (n) and the rate (gave,
+      retained) or capped mean (revenue_per_donor) for that anchor. Split and set groups are
+      ordinary groups here. Rows with is_window_complete = false are partial.
     data_tests:
       - pocore_unique_combination:
           arguments:
-            columns: ['segment_id', 'kpi_id', 'outcome_window_days', 'anchor_date']
+            columns: ['group_id', 'kpi_id', 'outcome_window_days', 'anchor_date']
     columns:
-      - name: segment_id
+      - name: group_id
         data_tests: [not_null]
       - name: kpi_id
         data_tests:
@@ -56,21 +50,21 @@ models:
 
   - name: pocore_group__flows__month
     description: >
-      One row per segment x snapshot date: donors_entering (in the segment now, not at the previous
+      One row per group x snapshot date: donors_entering (in the group now, not at the previous
       month-end) and donors_leaving (the reverse). Null for the first snapshot in the window.
     data_tests:
       - pocore_unique_combination:
           arguments:
-            columns: ['segment_id', 'snapshot_date']
+            columns: ['group_id', 'snapshot_date']
 
   - name: pocore_group__power
     description: >
-      One row per segment x KPI x window x baseline lookback x holdout %: pooled and recent baselines, stability, detectable lift (pooled and vs recent),
+      One row per group x KPI x window x baseline lookback x holdout %: pooled and recent baselines, stability, detectable lift (pooled and vs recent),
       is_testable, readable-by date.
     data_tests:
       - pocore_unique_combination:
           arguments:
-            columns: ['segment_id', 'kpi_id', 'outcome_window_days', 'baseline_lookback_months', 'holdout_pct']
+            columns: ['group_id', 'kpi_id', 'outcome_window_days', 'baseline_lookback_months', 'holdout_pct']
     columns:
       - name: is_unstable
         data_tests: [not_null]

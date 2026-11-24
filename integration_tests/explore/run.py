@@ -6,7 +6,7 @@ From integration_tests/ (after `uv run --project .. dbt build --profiles-dir .`)
     uv run --project .. python explore/run.py all        # run every step
 
 Queries are split on lines that start with `-- query:`; each query's title is printed first.
-Edit the .sql files freely: change the person, the date, the segment, and re-run.
+Edit the .sql files freely: change the person, the date, the group, and re-run.
 """
 import pathlib, sys
 import duckdb

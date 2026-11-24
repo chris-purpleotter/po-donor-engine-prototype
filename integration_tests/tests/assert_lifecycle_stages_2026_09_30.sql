@@ -8,7 +8,7 @@
 -- D05 recurring 2026-09-01 -> 29 days <= 45       -> sustainer
 -- D06 gift 2025-01-05, refunded (recency ignores refunds) -> 633 days -> lapsed
 -- D07 no gifts, created 2026-05-12                -> prospect
--- D08 grant only (not KPI-eligible)               -> prospect  (note: orgs excluded by default segment filter anyway)
+-- D08 grant only (not KPI-eligible)               -> prospect  (note: orgs excluded by default group filter anyway)
 -- D09 last gift 2021-04-18                        -> deep_lapsed
 -- D10 capital-campaign gift excluded; 2025-06-01  -> 486 days -> lapsed
 

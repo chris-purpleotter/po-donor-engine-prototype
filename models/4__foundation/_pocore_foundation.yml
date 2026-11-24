@@ -61,7 +61,8 @@ models:
       month-ends, from when the person existed). Looking BACK: state as of that date from earlier
       gifts only (derived values next to ingredients, plus rollup_* columns). Looking AHEAD:
       outcomes in the 30/90/180/365 days after it (gave_<N>d, revenue_<N>d, retained_<N>d for 90+,
-      is_complete_<N>d). Never sum across month-ends; sum across people at one month-end.
+      is_complete_<N>d), and next_gave_date (first qualifying gift in the 365 days after, or null).
+      Never sum across month-ends; sum across people at one month-end.
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['person_id', 'month_end_date']}

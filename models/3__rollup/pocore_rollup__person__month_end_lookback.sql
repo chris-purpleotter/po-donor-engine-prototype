@@ -1,6 +1,6 @@
 {#
   pocore_rollup__person__month_end_lookback — one row per person per month-end snapshot date. Every value is computed AS OF that date, from
-  KPI-eligible gifts only (SPEC §5, D6). This column list is the menu for segment rules.
+  KPI-eligible gifts only (SPEC §5, D6). This column list is the menu for group rules.
 
   Design (simple on purpose):
     1. snapshot_dates : the last N month-ends up to as_of (dbt.date_spine, portable)
@@ -337,7 +337,7 @@ select
         then 'deep_lapsed'
         else 'prospect'
     end as lifecycle_stage
-    {#- Client-chosen donor attributes (SPEC §6.5): usable in segment rules and breakdowns.
+    {#- Client-chosen donor attributes (SPEC §6.5): usable in group rules and breakdowns.
         (A Jinja comment, not SQL `--`: the trimmed comma below would otherwise land inside it.) #}
     {%- for c in var("people_extra_columns") %}, pocore_entity__person.attr_{{ c }} {%- endfor %}
     {#- Custom rollups (var `rollups`, macro pocore_client_config__rollups). #}

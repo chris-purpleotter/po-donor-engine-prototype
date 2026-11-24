@@ -23,7 +23,7 @@ unlabelled_stages as (
 -- every group's measure is in the measures list
 unknown_measures as (
     select distinct s.primary_kpi as item, 'primary_kpi missing from pocore_engine_config__measures' as problem
-    from {{ ref('pocore__segment') }} as s
+    from {{ ref('pocore__group') }} as s
     left join measures as m on m.kpi_id = s.primary_kpi
     where m.kpi_id is null
 ),

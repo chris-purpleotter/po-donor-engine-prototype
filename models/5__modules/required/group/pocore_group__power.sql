@@ -1,8 +1,8 @@
 {#
-  pocore_group__power — what an experiment on each segment could detect if launched now
+  pocore_group__power — what an experiment on each group could detect if launched now
   (SPEC §3.2). INTERNAL statistics: the full grid the certified tables read from.
-  One row per segment_id x kpi_id x outcome_window_days x baseline_lookback_months x holdout_pct.
-  Split and set segments are ordinary segments here, so "is this split big enough to test on
+  One row per group_id x kpi_id x outcome_window_days x baseline_lookback_months x holdout_pct.
+  Split and set groups are ordinary groups here, so "is this split big enough to test on
   its own?" is answered too.
 
     n_eligible         size at the latest anchor (the as_of month-end)
@@ -34,9 +34,9 @@
 {%- set instability_threshold = pocore_client_config__module('group').baseline_instability_threshold | float -%}
 {%- set max_lift = pocore_client_config__module('group').max_plausible_relative_lift | float -%}
 {%- set float_type = dbt.type_float() -%}
-{#- The keys that identify one baseline series (a segment, or a slice of one). -#}
-{%- set keys = ['segment_id', 'kpi_id', 'outcome_window_days'] -%}
-{%- set desc_cols = ['segment_label', 'segment_source', 'parent_segment_id', 'split_by', 'split_value', 'segment_set_id'] -%}
+{#- The keys that identify one baseline series (a group, or a slice of one). -#}
+{%- set keys = ['group_id', 'kpi_id', 'outcome_window_days'] -%}
+{%- set desc_cols = ['group_label', 'group_source', 'parent_group_id', 'split_by', 'split_value', 'group_set_id'] -%}
 
 with
 
@@ -48,9 +48,9 @@ baselines as (
 
 ),
 
--- Size today = n at the LATEST month-end (as_of's), for every series; 0 when the segment
+-- Size today = n at the LATEST month-end (as_of's), for every series; 0 when the group
 -- (or slice) has nobody now. Using each series' own latest anchor instead would show a
--- stale size for a segment that has since emptied. Window completeness doesn't matter for size.
+-- stale size for a group that has since emptied. Window completeness doesn't matter for size.
 latest as (
     select max(anchor_date) as latest_anchor_date from baselines
 ),
@@ -141,8 +141,8 @@ recent as (
 
 ),
 
--- Every lookback for every series, so a segment with NO complete history yet (a new custom
--- segment, a new split value) still gets rows: its size, with empty rates, instead of vanishing.
+-- Every lookback for every series, so a group with NO complete history yet (a new custom
+-- group, a new split value) still gets rows: its size, with empty rates, instead of vanishing.
 lookback_list as (
     {% for lb in lookbacks %}
     select {{ lb }} as baseline_lookback_months {% if not loop.last %}union all{% endif %}
@@ -158,7 +158,7 @@ holdouts as (
 sized as (
 
     select
-        eligible.segment_id, {% for c in desc_cols %}eligible.{{ c }}, {% endfor %}
+        eligible.group_id, {% for c in desc_cols %}eligible.{{ c }}, {% endfor %}
         eligible.kpi_id, eligible.metric_type, eligible.outcome_window_days,
         lookback_list.baseline_lookback_months,
         holdouts.holdout_pct,
@@ -216,7 +216,7 @@ with_mde as (
 )
 
 select
-    segment_id, {{ desc_cols | join(', ') }},
+    group_id, {{ desc_cols | join(', ') }},
     kpi_id, metric_type, outcome_window_days,
     baseline_lookback_months, holdout_pct,
     latest_anchor_date, n_eligible, n_treatment, n_holdout,
