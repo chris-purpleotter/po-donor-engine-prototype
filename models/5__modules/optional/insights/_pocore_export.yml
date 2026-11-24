@@ -57,7 +57,9 @@ models:
     description: >
       One row per group x month-end x tenure band: how long the people in the group at that
       month-end had been in it (current term, pocore__person__group__term), in the bands of
-      module__group.tenure_bands_months. A group's bands at one month-end add up to its people.
+      module__group.tenure_bands_months, counted back from the row's month-end ("1-2 years before").
+      months_from / months_to: the band in months before that month-end (inclusive; months_to null
+      for the top band and "unknown"). A group's bands at one month-end add up to its people.
     data_tests:
       - pocore_unique_combination:
           arguments: {columns: ['group_id', 'month_end_date', 'band_order']}

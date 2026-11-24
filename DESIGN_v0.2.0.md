@@ -428,6 +428,10 @@ subfolder (schema `pocore`, tag `pocore_certified`): `5__modules/required/group/
 `5__modules/optional/cohort/certified/` (pocore__cohort__age, __age__breakdown). Analysts and BI use
 the foundation and certified tables only; module workings and earlier steps are internal.
 
+**v0.8.1:** `pocore_export__insights_tenure` gains `months_from` / `months_to` (each band in months
+before the row's month-end), and its labels say "before" ("that month", "1-2 years before"), so the
+report can show real months ("Joined Feb-Mar 2025") and no label reads as "now". Additive.
+
 **v0.8.0 (breaking): "segment" is now "group" everywhere, and groups have terms.**
 - Rename: `pocore__group`, `__group__month`, `__group__test_option`, `__person__group`; columns
   `group_id`, `group_label`, `group_set_id`, `parent_group_id`, `people_in_group`; client settings

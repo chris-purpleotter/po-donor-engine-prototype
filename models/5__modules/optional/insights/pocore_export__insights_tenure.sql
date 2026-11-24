@@ -7,8 +7,11 @@
   Aug 2025, how many had joined in the last month, the last year, 2+ years ago".
 
   Bands: module__group.tenure_bands_months, e.g. [1, 2, 3, 4, 6, 12, 24] gives
-  joined this month / 1 month / 2 months / 3 months / 4-5 months / 6-11 months / 1-2 years / 2+ years.
-  Months, not days: groups are checked at month-ends.
+  that month / 1 month before / 2 months before / 3 months before / 4-5 months before /
+  6-11 months before / 1-2 years before / 2+ years before: when they joined, counted back from the
+  row's month_end_date. months_from / months_to give each band as numbers (months before that
+  month-end, inclusive; months_to null for the top band, both null for "unknown"), so a report can show real
+  months ("Feb-Mar 2025"). Months, not days: groups are checked at month-ends.
   Someone in the group since before the engine's first month-end (is_joined_before_data) has
   been in AT LEAST that long: counted in the top band when that's long enough, else "unknown".
   The bands of one group at one month-end add up to its people_in_group.
@@ -25,15 +28,15 @@
 {%- for lo in lowers -%}
     {%- set hi = bounds[loop.index0] -%}
     {%- if hi - lo == 1 -%}
-        {%- set label = 'joined this month' if lo == 0 else (lo ~ ' month' ~ ('' if lo == 1 else 's')) -%}
+        {%- set label = 'that month' if lo == 0 else (lo ~ ' month' ~ ('' if lo == 1 else 's') ~ ' before') -%}
     {%- elif lo % 12 == 0 and hi % 12 == 0 and lo > 0 -%}
-        {%- set label = (lo // 12) ~ '-' ~ (hi // 12) ~ ' years' -%}
+        {%- set label = (lo // 12) ~ '-' ~ (hi // 12) ~ ' years before' -%}
     {%- else -%}
-        {%- set label = lo ~ '-' ~ (hi - 1) ~ ' months' -%}
+        {%- set label = lo ~ '-' ~ (hi - 1) ~ ' months before' -%}
     {%- endif -%}
     {%- do bands.append({'order': loop.index, 'lo': lo, 'hi': hi, 'label': label}) -%}
 {%- endfor -%}
-{%- set top_label = ((top // 12) ~ '+ years') if top % 12 == 0 else (top ~ '+ months') -%}
+{%- set top_label = (((top // 12) ~ '+ years') if top % 12 == 0 else (top ~ '+ months')) ~ ' before' -%}
 
 with
 
@@ -88,6 +91,17 @@ select
         when {{ bands | length + 1 }} then '{{ top_label }}'
         else 'unknown (before our data)'
     end                                                                             as band_label,
+    case band_order
+        {%- for band in bands %}
+        when {{ band.order }} then {{ band.lo }}
+        {%- endfor %}
+        when {{ bands | length + 1 }} then {{ top }}
+    end                                                                             as months_from,
+    case band_order
+        {%- for band in bands %}
+        when {{ band.order }} then {{ band.hi - 1 }}
+        {%- endfor %}
+    end                                                                             as months_to,
     count(*)                                                                        as people
 from banded
 group by group_id, month_end_date, band_order

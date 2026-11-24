@@ -27,7 +27,7 @@
               max_plausible_relative_lift 0.5 (is_testable: lift must be <= +50% relative),
               summary_holdout_pct 15 (must be in holdout_grid), summary_default_window_days 180;
               tenure_bands_months [1, 2, 3, 4, 6, 12, 24] (how long people had been in a group:
-              joined this month, 1, 2, 3, 4-5, 6-11 months, 1-2 years, 2+ years)
+              joined that month, 1, 2, 3, 4-5, 6-11 months, 1-2 years, 2+ years before)
     movement  enabled
     cohort    enabled; survival_months [2, 6, 12, 24] ("still giving in month N");
               ltv_horizons_months [12, 24, 60] (cumulative revenue per starter through month N)
